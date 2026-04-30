@@ -1,25 +1,25 @@
 {
   "planPath": "docs/superpowers/plans/2026-04-30-safessh-v0.1.0.md",
-  "lastUpdated": "2026-04-30T00:00:00Z",
+  "lastUpdated": "2026-04-30T01:00:00Z",
   "tasks": [
     {
       "id": 0,
       "subject": "Task 0: Workspace bootstrap",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Initialize git repo, Rust workspace, seven empty crates, license files, .gitignore.\n\n**Verify:** `cargo build --workspace && cargo test --workspace && cargo fmt --check`\n\n```json:metadata\n{\"files\": [\".gitignore\", \"Cargo.toml\", \"LICENSE-MIT\", \"LICENSE-APACHE\", \"README.md\", \"crates/safessh-core/Cargo.toml\", \"crates/safessh-storage/Cargo.toml\", \"crates/safessh-policy/Cargo.toml\", \"crates/safessh-audit/Cargo.toml\", \"crates/safessh-ssh/Cargo.toml\", \"crates/safessh-skill/Cargo.toml\", \"crates/safessh-cli/Cargo.toml\"], \"verifyCommand\": \"cargo build --workspace && cargo test --workspace && cargo fmt --check\", \"acceptanceCriteria\": [\"git status shows main and develop branches\", \"cargo build succeeds with zero warnings\", \"cargo test runs zero tests with zero failures\", \"cargo fmt check passes\"]}\n```",
       "blockedBy": []
     },
     {
       "id": 1,
       "subject": "Task 1: CI workflow",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** GitHub Actions CI runs fmt + clippy + tests on PRs and pushes to develop/main.\n\n**Verify:** Push and confirm GitHub Actions runs successfully.\n\n```json:metadata\n{\"files\": [\".github/workflows/ci.yml\"], \"verifyCommand\": \"git push -u origin develop\", \"acceptanceCriteria\": [\"fmt-check, clippy -D warnings, cargo test --workspace all run\", \"build matrix: macos-14, macos-13, ubuntu-22.04\", \"container integration on Linux only with --features integration\"]}\n```",
       "blockedBy": [0]
     },
     {
       "id": 2,
       "subject": "Task 2: cargo-dist release pipeline",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** cargo-dist generates the release workflow for cross-platform builds, GitHub Releases, Homebrew tap, install script.\n\n**Verify:** `cargo dist plan` lists all four target triples.\n\n```json:metadata\n{\"files\": [\"Cargo.toml\", \".github/workflows/release.yml\"], \"verifyCommand\": \"cargo dist plan\", \"acceptanceCriteria\": [\"4 targets configured (mac arm64/x64, linux x64/arm64)\", \"shell + homebrew installers configured\", \"workflow runs only on v* tags\"]}\n```",
       "blockedBy": [0]
     },
