@@ -7,6 +7,7 @@ repository.workspace = true
 
 [dependencies]
 safessh-core = { workspace = true }
+safessh-storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 conch-parser = "0.1"
@@ -15,3 +16,4 @@ sqlparser = "0.45"
 
 [dev-dependencies]
 proptest = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
