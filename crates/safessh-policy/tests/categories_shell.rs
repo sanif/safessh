@@ -15,7 +15,10 @@ use safessh_policy::parser::parse;
 /// Parse `s` into a single [`ParsedCommand`]. Tests panic on parse failure
 /// because every input here is hand-crafted and known good.
 fn p(s: &str) -> ParsedCommand {
-    parse(s).expect("test input must parse").pop().expect("at least one command")
+    parse(s)
+        .expect("test input must parse")
+        .pop()
+        .expect("at least one command")
 }
 
 // ----- read:safe -------------------------------------------------------------
@@ -99,7 +102,9 @@ fn priv_esc_positives() {
 
 #[test]
 fn priv_esc_pkexec() {
-    assert!(is_privilege_escalation(&p("pkexec systemctl restart nginx")));
+    assert!(is_privilege_escalation(&p(
+        "pkexec systemctl restart nginx"
+    )));
 }
 
 #[test]

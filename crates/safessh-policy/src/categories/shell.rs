@@ -107,9 +107,9 @@ pub fn is_destructive_disk(cmd: &ParsedCommand) -> bool {
     if cmd.binary.starts_with("mkfs.") {
         return true;
     }
-    cmd.redirects.iter().any(|r| {
-        r.contains("/dev/sd") || r.contains("/dev/nvme") || r.contains("/dev/disk")
-    })
+    cmd.redirects
+        .iter()
+        .any(|r| r.contains("/dev/sd") || r.contains("/dev/nvme") || r.contains("/dev/disk"))
 }
 
 const PRIV_ESC_BINS: &[&str] = &["sudo", "su", "doas", "pkexec"];
@@ -148,8 +148,7 @@ pub fn is_network_listen(cmd: &ParsedCommand) -> bool {
         return cmd.args.iter().any(|a| a.contains("LISTEN"));
     }
     if cmd.binary == "python" || cmd.binary == "python3" {
-        return cmd.flags.iter().any(|f| f == "-m")
-            && cmd.args.iter().any(|a| a == "http.server");
+        return cmd.flags.iter().any(|f| f == "-m") && cmd.args.iter().any(|a| a == "http.server");
     }
     false
 }
@@ -169,19 +168,13 @@ pub fn is_exec_opaque(cmd: &ParsedCommand) -> bool {
         return false;
     }
     const OPAQUE_SHELLS: &[&str] = &["sh", "bash", "zsh", "fish", "ksh", "dash"];
-    if OPAQUE_SHELLS.contains(&cmd.binary.as_str())
-        && cmd.flags.iter().any(|f| f == "-c")
-    {
+    if OPAQUE_SHELLS.contains(&cmd.binary.as_str()) && cmd.flags.iter().any(|f| f == "-c") {
         return true;
     }
-    if (cmd.binary == "python" || cmd.binary == "python3")
-        && cmd.flags.iter().any(|f| f == "-c")
-    {
+    if (cmd.binary == "python" || cmd.binary == "python3") && cmd.flags.iter().any(|f| f == "-c") {
         return true;
     }
-    if (cmd.binary == "perl" || cmd.binary == "ruby")
-        && cmd.flags.iter().any(|f| f == "-e")
-    {
+    if (cmd.binary == "perl" || cmd.binary == "ruby") && cmd.flags.iter().any(|f| f == "-e") {
         return true;
     }
     if cmd.binary == "eval" {

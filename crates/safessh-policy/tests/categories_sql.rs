@@ -172,10 +172,16 @@ fn match_all_combines_shell_and_sql() {
 
     // Every shell + SQL category must appear in the union.
     for cat in &shell {
-        assert!(all.contains(cat), "match_all missing shell cat {cat:?}: {all:?}");
+        assert!(
+            all.contains(cat),
+            "match_all missing shell cat {cat:?}: {all:?}"
+        );
     }
     for cat in &sql {
-        assert!(all.contains(cat), "match_all missing sql cat {cat:?}: {all:?}");
+        assert!(
+            all.contains(cat),
+            "match_all missing sql cat {cat:?}: {all:?}"
+        );
     }
 
     // Sorted + deduped.
