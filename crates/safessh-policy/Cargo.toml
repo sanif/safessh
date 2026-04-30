@@ -6,5 +6,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+safessh-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+conch-parser = "0.1"
+shell-words = "1"
+
+[dev-dependencies]
+proptest = { workspace = true }
