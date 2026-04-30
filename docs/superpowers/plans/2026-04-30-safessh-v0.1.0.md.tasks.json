@@ -26,49 +26,49 @@
     {
       "id": 3,
       "subject": "Task 3: safessh-core types and Error",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Core types: Error, ProjectId, Target, ParsedCommand, PolicyDecision, ApprovalToken, AuditEvent. Exit-code mapping.\n\n**Verify:** `cargo test --package safessh-core`\n\n```json:metadata\n{\"files\": [\"crates/safessh-core/src/error.rs\", \"crates/safessh-core/src/types.rs\", \"crates/safessh-core/src/lib.rs\", \"crates/safessh-core/tests/types.rs\"], \"verifyCommand\": \"cargo test --package safessh-core\", \"acceptanceCriteria\": [\"Error covers every category from spec §7.1\", \"ProjectId rejects slashes/spaces/empty\", \"ApprovalToken is 6-char alphanumeric via rand\", \"All types serde round-trip\"]}\n```",
       "blockedBy": [0]
     },
     {
       "id": 4,
       "subject": "Task 4: Redactor with default-on patterns",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Redactor with AWS keys, JWT, private-key blocks, bearer tokens, password params. Property test: original token never appears in output.\n\n**Verify:** `cargo test --package safessh-core --test redactor`\n\n```json:metadata\n{\"files\": [\"crates/safessh-core/src/redactor.rs\", \"crates/safessh-core/tests/redactor.rs\"], \"verifyCommand\": \"cargo test --package safessh-core\", \"acceptanceCriteria\": [\"Five default patterns each tested\", \"Property test 256 cases\", \"// SAFETY-INVARIANT-6 marker\"]}\n```",
       "blockedBy": [3]
     },
     {
       "id": 5,
       "subject": "Task 5: Storage paths, atomic writes, advisory locks",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** XDG-style path resolution, tempfile+rename atomic writes, fs2 exclusive advisory locks.\n\n**Verify:** `cargo test --package safessh-storage`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/paths.rs\", \"crates/safessh-storage/src/atomic.rs\", \"crates/safessh-storage/src/locking.rs\", \"crates/safessh-storage/src/lib.rs\", \"crates/safessh-storage/tests/atomic.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage\", \"acceptanceCriteria\": [\"Paths::user honors SAFESSH_HOME\", \"atomic::write_string never half-writes\", \"LockedFile blocks until acquired\", \"// SAFETY-INVARIANT-5 and -12 markers\"]}\n```",
       "blockedBy": [3]
     },
     {
       "id": 6,
       "subject": "Task 6: Project + global config TOML schemas",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Project (multi-target, policy refs, output caps) and Config schemas with TOML round-trip.\n\n**Verify:** `cargo test --package safessh-storage --test project`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/config.rs\", \"crates/safessh-storage/src/project.rs\", \"crates/safessh-storage/tests/project.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage\", \"acceptanceCriteria\": [\"Schema matches spec §4.4\", \"TOML round-trip stable\", \"ProjectStore CRUD against tempdir\"]}\n```",
       "blockedBy": [5]
     },
     {
       "id": 7,
       "subject": "Task 7: Approval stores (pending/timed/always/blocked)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Persistent stores for the four approval states with locking, TTL expiry on read for timed.\n\n**Verify:** `cargo test --package safessh-storage --test approvals`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/approvals.rs\", \"crates/safessh-storage/tests/approvals.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage\", \"acceptanceCriteria\": [\"Pending add/take/cleanup_expired\", \"Timed list_active filters by Utc::now()\", \"Always/Blocked add/list/remove\", \"// SAFETY-INVARIANT-7 marker\"]}\n```",
       "blockedBy": [6]
     },
     {
       "id": 8,
       "subject": "Task 8: Keychain integration",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** KeychainProvider trait + SystemKeychain (keyring crate) + MockKeychain.\n\n**Verify:** `cargo test --package safessh-storage --test keyring`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/keyring.rs\", \"crates/safessh-storage/tests/keyring.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage --features test-support\", \"acceptanceCriteria\": [\"Trait with get/set/delete\", \"SystemKeychain uses 'safessh' service name\", \"MockKeychain backed by HashMap\"]}\n```",
       "blockedBy": [5]
     },
     {
       "id": 9,
       "subject": "Task 9: Shell AST parser",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** parser wraps conch-parser to produce ParsedCommand. Returns ParseError::Opaque on failure (default-deny).\n\n**Verify:** `cargo test --package safessh-policy --test parser`\n\n```json:metadata\n{\"files\": [\"crates/safessh-policy/src/parser.rs\", \"crates/safessh-policy/src/ast.rs\", \"crates/safessh-policy/tests/parser.rs\"], \"verifyCommand\": \"cargo test --package safessh-policy\", \"acceptanceCriteria\": [\"rm -rf parses with bundled flags\", \"unterminated quote → Opaque\", \"property test: never panics\"]}\n```",
       "blockedBy": [3]
     },
