@@ -11,6 +11,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 conch-parser = "0.1"
 shell-words = "1"
+sqlparser = "0.45"
 
 [dev-dependencies]
 proptest = { workspace = true }

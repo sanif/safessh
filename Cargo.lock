@@ -1376,6 +1376,7 @@ dependencies = [
  "safessh-core",
  "serde",
  "shell-words",
+ "sqlparser",
  "thiserror",
 ]
 
@@ -1579,6 +1580,15 @@ checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "sqlparser"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7bbffee862a796d67959a89859d6b1046bb5016d63e23835ad0da182777bbe0"
+dependencies = [
+ "log",
 ]
 
 [[package]]
