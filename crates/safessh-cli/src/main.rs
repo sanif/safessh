@@ -19,14 +19,14 @@ async fn main() {
 
     let parsed = cli::Cli::parse();
 
-    // The `--yolo` global flag is parsed and available here; Task 23 will
-    // consult it (plus the project + global `approvals.yolo` config) to
-    // decide whether to bypass approval prompts.
-    let _yolo = parsed.yolo;
+    // `--yolo` is a top-level global flag (clap `global = true`), so it's
+    // available regardless of subcommand position: both `safessh --yolo X exec
+    // ...` and `safessh X exec --yolo ...` end up here with `parsed.yolo == true`.
+    let yolo = parsed.yolo;
 
     match parsed.command {
         cli::TopCmd::External(args) => {
-            if let Err(e) = commands::exec::run(args).await {
+            if let Err(e) = commands::exec::run(args, yolo).await {
                 errors::report_and_exit(e);
             }
         }

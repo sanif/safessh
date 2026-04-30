@@ -8,8 +8,9 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(name = "safessh", version, about = "Personal SSH proxy for LLM agents")]
 pub struct Cli {
-    /// Bypass approval prompts (requires `approvals.yolo = true` in config).
-    /// Wired in Task 23; defined here at the top level so all subcommands inherit it.
+    /// Skip the policy engine entirely and run the SSH command directly.
+    /// Refused (exit 13) when `disable_yolo = true` in the global config.
+    /// Audited as `yolo_invocation`. Output cap and redactor still apply.
     #[arg(long, global = true)]
     pub yolo: bool,
 
