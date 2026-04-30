@@ -1342,7 +1342,12 @@ dependencies = [
 name = "safessh-audit"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "safessh-core",
+ "safessh-storage",
  "serde",
+ "serde_json",
+ "tempfile",
  "thiserror",
 ]
 
