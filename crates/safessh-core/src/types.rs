@@ -125,6 +125,19 @@ impl ApprovalToken {
         Self(token)
     }
 
+    /// Wrap an existing token string (e.g. from a CLI argument).
+    ///
+    /// No validation is performed: if the token doesn't correspond to a
+    /// real pending file, the lookup will fail gracefully with
+    /// `Error::Usage("no pending approval: ...")`.
+    ///
+    /// Named `from_str` (not `FromStr::from_str`) because this conversion
+    /// is infallible — `FromStr` requires an `Err` associated type.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Self {
+        Self(s.to_string())
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

@@ -36,7 +36,17 @@ async fn main() {
             }
         }
         cli::TopCmd::Policy { .. } => println!("(policy not yet wired)"),
-        cli::TopCmd::Approve { .. } => println!("(approve not yet wired)"),
+        cli::TopCmd::Approve {
+            token,
+            timed,
+            minutes,
+            always,
+            block,
+        } => {
+            if let Err(e) = commands::approve::run(token, timed, minutes, always, block) {
+                errors::report_and_exit(e);
+            }
+        }
         cli::TopCmd::Audit { .. } => println!("(audit not yet wired)"),
         cli::TopCmd::Skill { .. } => println!("(skill not yet wired)"),
         cli::TopCmd::Tui => {
