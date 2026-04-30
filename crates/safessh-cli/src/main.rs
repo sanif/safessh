@@ -6,6 +6,7 @@
 use clap::Parser;
 
 mod cli;
+mod commands;
 mod errors;
 
 #[tokio::main]
@@ -25,7 +26,11 @@ async fn main() {
         cli::TopCmd::External(args) => {
             println!("(exec dispatch not yet wired) args: {args:?}");
         }
-        cli::TopCmd::Project { .. } => println!("(project not yet wired)"),
+        cli::TopCmd::Project { cmd } => {
+            if let Err(e) = commands::project::run(cmd) {
+                errors::report_and_exit(e);
+            }
+        }
         cli::TopCmd::Policy { .. } => println!("(policy not yet wired)"),
         cli::TopCmd::Approve { .. } => println!("(approve not yet wired)"),
         cli::TopCmd::Audit { .. } => println!("(audit not yet wired)"),
