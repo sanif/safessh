@@ -10,6 +10,7 @@ safessh-core = { workspace = true }
 safessh-storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+dirs = "5"
 
 [dev-dependencies]
 insta = { workspace = true }
