@@ -1,0 +1,7 @@
+session_name: safessh
+start_directory: /Volumes/External/Users/sanifss/Desktop/Workspace/Projects/Personal/safessh
+windows:
+- window_name: main
+  panes:
+  - shell_command:
+    - $EDITOR .

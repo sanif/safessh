@@ -1,0 +1,13 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local state — never check in
+~/.local/state/safessh/
+~/.config/safessh/
+~/.cache/safessh/
