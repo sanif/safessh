@@ -5,15 +5,7 @@ ship v0.1.0 to users.
 
 ## Prerequisites
 
-1. **Create the Homebrew tap repo** on GitHub:
-   ```sh
-   gh repo create sanifss/homebrew-safessh --public \
-     --description "Homebrew tap for safessh"
-   ```
-2. **Push the safessh repo to GitHub** (if not already):
-   ```sh
-   gh repo create sanifss/safessh --public --source=. --remote=origin --push
-   ```
+The Homebrew tap repo (`sanif/homebrew-tap`) and the safessh repo (`sanif/safessh`) already exist. The `dist-workspace.toml` `tap` field and `release.yml` repository reference both point at `sanif/homebrew-tap`.
 
 ## Step 1: Pre-release verification
 
@@ -49,7 +41,7 @@ GitHub Actions runs the release workflow. Verify:
 ## Step 4: Clean-machine verification
 
 On a clean macOS arm64 (or Docker linux container):
-- `brew install sanifss/safessh/safessh`
+- `brew install sanif/tap/safessh`
 - `safessh --version` should print `safessh 0.1.0-rc.1`.
 - `safessh project add demo --alias localhost && safessh demo exec "echo hi"`
 

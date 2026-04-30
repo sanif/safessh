@@ -11,16 +11,16 @@ A personal CLI proxy for LLM-driven SSH operations. Credentials stay yours; comm
 ### Homebrew
 
 ```sh
-brew install sanifss/safessh/safessh
+brew install sanif/tap/safessh
 ```
 
-(Tap published with the first tagged release.)
+(Formula published to `sanif/homebrew-tap` on the first tagged release.)
 
 ### curl
 
 ```sh
 curl --proto '=https' --tlsv1.2 -fsSL \
-  https://github.com/sanifss/safessh/releases/latest/download/safessh-installer.sh | sh
+  https://github.com/sanif/safessh/releases/latest/download/safessh-installer.sh | sh
 ```
 
 ### cargo

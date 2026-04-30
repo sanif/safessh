@@ -98,7 +98,7 @@ Releases are driven by `cargo-dist`. The pipeline is configured in `dist-workspa
 
    ```sh
    curl --proto '=https' --tlsv1.2 -fsSL \
-     https://github.com/sanifss/safessh/releases/latest/download/safessh-installer.sh | sh
+     https://github.com/sanif/safessh/releases/latest/download/safessh-installer.sh | sh
    safessh --version
    ```
 
