@@ -35,7 +35,12 @@ async fn main() {
                 errors::report_and_exit(e);
             }
         }
-        cli::TopCmd::Policy { .. } => println!("(policy not yet wired)"),
+        cli::TopCmd::Policy { cmd } => {
+            let cli::PolicyCmd::Show { what } = cmd;
+            if let Err(e) = commands::policy::run(what) {
+                errors::report_and_exit(e);
+            }
+        }
         cli::TopCmd::Approve {
             token,
             timed,
@@ -47,8 +52,21 @@ async fn main() {
                 errors::report_and_exit(e);
             }
         }
-        cli::TopCmd::Audit { .. } => println!("(audit not yet wired)"),
-        cli::TopCmd::Skill { .. } => println!("(skill not yet wired)"),
+        cli::TopCmd::Audit { cmd } => {
+            let cli::AuditCmd::Query {
+                project,
+                r#type,
+                grep,
+            } = cmd;
+            if let Err(e) = commands::audit::run(project, r#type, grep) {
+                errors::report_and_exit(e);
+            }
+        }
+        cli::TopCmd::Skill { cmd } => {
+            if let Err(e) = commands::skill::run(cmd) {
+                errors::report_and_exit(e);
+            }
+        }
         cli::TopCmd::Tui => {
             eprintln!("safessh: tui lands in v0.2");
             std::process::exit(1);

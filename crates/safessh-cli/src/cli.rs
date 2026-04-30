@@ -121,6 +121,8 @@ pub enum SkillCmd {
         target: Option<String>,
         #[arg(long, value_enum, default_value_t = SkillScope::User)]
         scope: SkillScope,
+        #[arg(long)]
+        path: Option<std::path::PathBuf>,
     },
     Show {
         #[arg(long)]
