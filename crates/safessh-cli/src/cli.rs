@@ -1,0 +1,136 @@
+//! CLI top-level command structure (clap-derived).
+//!
+//! Subcommand bodies are placeholders in Task 18; later tasks wire them
+//! to `safessh-storage`, `safessh-policy`, `safessh-audit`, etc.
+
+use clap::{Parser, Subcommand};
+
+#[derive(Parser, Debug)]
+#[command(name = "safessh", version, about = "Personal SSH proxy for LLM agents")]
+pub struct Cli {
+    /// Bypass approval prompts (requires `approvals.yolo = true` in config).
+    /// Wired in Task 23; defined here at the top level so all subcommands inherit it.
+    #[arg(long, global = true)]
+    pub yolo: bool,
+
+    #[command(subcommand)]
+    pub command: TopCmd,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TopCmd {
+    /// Run command on a project (default subcommand when first arg is a project name).
+    /// Captured via `external_subcommand` so argv passes through verbatim,
+    /// e.g. `safessh prod exec "ls -la"`.
+    #[command(external_subcommand)]
+    External(Vec<String>),
+
+    /// Manage projects
+    Project {
+        #[command(subcommand)]
+        cmd: ProjectCmd,
+    },
+
+    /// Inspect policies
+    Policy {
+        #[command(subcommand)]
+        cmd: PolicyCmd,
+    },
+
+    /// Approve a pending request by token
+    Approve {
+        token: String,
+        #[arg(long)]
+        timed: bool,
+        #[arg(long)]
+        minutes: Option<u32>,
+        #[arg(long)]
+        always: bool,
+        #[arg(long)]
+        block: bool,
+    },
+
+    /// Inspect audit log
+    Audit {
+        #[command(subcommand)]
+        cmd: AuditCmd,
+    },
+
+    /// Install / inspect agent skills
+    Skill {
+        #[command(subcommand)]
+        cmd: SkillCmd,
+    },
+
+    /// Launch the TUI (v0.2 - placeholder in v0.1)
+    Tui,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ProjectCmd {
+    Add {
+        name: String,
+        #[arg(long)]
+        alias: Option<String>,
+        #[arg(long)]
+        host: Option<String>,
+        #[arg(long)]
+        user: Option<String>,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+    },
+    List,
+    Edit {
+        name: String,
+    },
+    Remove {
+        name: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PolicyCmd {
+    Show { what: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AuditCmd {
+    Query {
+        #[arg(long)]
+        project: Option<String>,
+        #[arg(long, value_name = "EVENT_TYPE")]
+        r#type: Option<String>,
+        #[arg(long, value_name = "PATTERN")]
+        grep: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SkillCmd {
+    Install {
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long, value_enum, default_value_t = SkillScope::User)]
+        scope: SkillScope,
+        #[arg(long)]
+        path: Option<std::path::PathBuf>,
+    },
+    Uninstall {
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long, value_enum, default_value_t = SkillScope::User)]
+        scope: SkillScope,
+    },
+    Show {
+        #[arg(long)]
+        target: Option<String>,
+    },
+    Check,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum SkillScope {
+    User,
+    Project,
+    Path,
+}
