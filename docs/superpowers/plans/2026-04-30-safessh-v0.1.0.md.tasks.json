@@ -194,7 +194,7 @@
     {
       "id": 27,
       "subject": "Task 27: v0.1.0 release rehearsal",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Verify cargo-dist pipeline end-to-end via v0.1.0-rc.1 tag, then promote to v0.1.0.\n\n**Verify:** Manual rehearsal on clean macOS arm64 + Linux x64 machines.\n\n```json:metadata\n{\"files\": [\"CHANGELOG.md\", \"Cargo.toml\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"CHANGELOG v0.1.0 entry complete\", \"GitHub Release with 4 binaries + checksums\", \"Homebrew formula updated in tap repo\", \"installer.sh hosted and works on clean Linux\", \"brew install works on clean macOS\"]}\n```",
       "blockedBy": [25, 26]
     }
