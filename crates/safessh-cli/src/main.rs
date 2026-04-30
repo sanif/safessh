@@ -9,6 +9,7 @@ mod cli;
 mod commands;
 mod errors;
 mod output;
+mod prompt;
 
 #[tokio::main]
 async fn main() {

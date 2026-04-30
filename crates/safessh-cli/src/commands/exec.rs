@@ -12,11 +12,20 @@
 //!   gating event prior to running the SSH driver or printing the framed
 //!   block.
 //!
-//! TTY-prompt path lands in Task 21; this module's `RequireApproval` arm
-//! always emits the structured `BLOCKED:` token (via `Error::ApprovalRequired`
-//! in `errors::report_and_exit`) so headless agents can parse and recover.
+//! Two paths share the `RequireApproval` arm:
+//!
+//! * **Headless** (no TTY): persist a [`PendingRequest`], emit the structured
+//!   `BLOCKED:` token via `Error::ApprovalRequired`, and exit so an agent can
+//!   parse and recover. (Task 20.)
+//! * **TTY** (Task 21): present a five-action `dialoguer` prompt via
+//!   [`crate::prompt::ask`] and apply the user's choice in-process — falling
+//!   through to exec for `Once`/`Timed`/`Always`, returning `Error::Denied`
+//!   for `Deny`, or persisting a block rule and returning `Error::Blocked`
+//!   for `Block`.
 
 use crate::output;
+use crate::prompt::{self, PromptAction};
+use chrono::{Duration, Utc};
 use safessh_audit::event;
 use safessh_audit::jsonl::AuditWriter;
 use safessh_core::error::{Error, Result};
@@ -25,7 +34,9 @@ use safessh_core::types::{ParsedCommand, PolicyDecision};
 use safessh_policy::{decide, DecisionInput};
 use safessh_ssh::driver::{OutputChunk, SshDriver};
 use safessh_ssh::openssh::OpenSshDriver;
-use safessh_storage::approvals::{AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore};
+use safessh_storage::approvals::{
+    AlwaysStore, BlockedStore, PatternRule, PendingRequest, PendingStore, TimedRule, TimedStore,
+};
 use safessh_storage::paths::Paths;
 use safessh_storage::project::ProjectStore;
 use std::sync::{Arc, Mutex};
@@ -96,27 +107,83 @@ pub async fn run(args: Vec<String>) -> Result<()> {
         PolicyDecision::RequireApproval {
             token, categories, ..
         } => {
-            let req = PendingRequest {
-                token: token.as_str().to_string(),
-                project: project_name.clone(),
-                categories: categories.clone(),
-                parsed: parsed.clone(),
-                raw: raw_command.clone(),
-                created_at: chrono::Utc::now(),
-            };
-            // Persist the pending request BEFORE returning the structured
-            // deny so `safessh approve <token>` has something to consume.
-            pending.add(&req)?;
+            // SAFETY-INVARIANT-4: write the gating audit event before any
+            // user-visible output (the dialoguer prompt prints to stderr)
+            // or store mutation.
             writer.append(&event::approval_requested(
                 &project_name,
                 token.as_str(),
                 categories,
                 &raw_command,
             ))?;
-            return Err(Error::ApprovalRequired {
-                token: token.as_str().to_string(),
-                categories: categories.clone(),
-            });
+
+            if atty::is(atty::Stream::Stdin) {
+                // TTY path: ask the user inline, apply the action immediately.
+                // No `PendingRequest` is persisted — the decision happens in
+                // this single invocation, not across processes.
+                let action = prompt::ask(
+                    &parsed,
+                    categories,
+                    project.approvals.timed_default_minutes,
+                )?;
+                let pattern = PatternRule {
+                    rule_id: format!("rule-{}", Utc::now().timestamp_millis()),
+                    binary: parsed.binary.clone(),
+                    flags: parsed.flags.clone(),
+                    args_pattern: None,
+                    categories: categories.clone(),
+                    created_at: Utc::now(),
+                };
+                match action {
+                    PromptAction::Once => { /* fall through to exec */ }
+                    PromptAction::Timed(min) => {
+                        timed.add(
+                            &project_name,
+                            TimedRule {
+                                pattern,
+                                expires_at: Utc::now() + Duration::minutes(min as i64),
+                            },
+                        )?;
+                    }
+                    PromptAction::Always => {
+                        always.add(&project_name, pattern)?;
+                    }
+                    PromptAction::Deny => {
+                        return Err(Error::Denied("user denied".into()));
+                    }
+                    PromptAction::Block => {
+                        let rule_id = pattern.rule_id.clone();
+                        blocked.add(&project_name, pattern)?;
+                        return Err(Error::Blocked {
+                            rule_id,
+                            reason: "user blocked".into(),
+                        });
+                    }
+                }
+                // Approved (Once/Timed/Always): record the proceed decision
+                // for audit parity with the pure-Allow branch.
+                writer.append(&event::exec_attempt(
+                    &project_name,
+                    &parsed,
+                    "user-approved",
+                ))?;
+            } else {
+                // Headless path: persist pending and return the structured
+                // deny token so an agent can call `safessh approve <token>`.
+                let req = PendingRequest {
+                    token: token.as_str().to_string(),
+                    project: project_name.clone(),
+                    categories: categories.clone(),
+                    parsed: parsed.clone(),
+                    raw: raw_command.clone(),
+                    created_at: chrono::Utc::now(),
+                };
+                pending.add(&req)?;
+                return Err(Error::ApprovalRequired {
+                    token: token.as_str().to_string(),
+                    categories: categories.clone(),
+                });
+            }
         }
         PolicyDecision::Block { rule_id, pattern } => {
             return Err(Error::Blocked {
