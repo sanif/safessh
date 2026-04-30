@@ -34,3 +34,10 @@ tracing-subscriber = { workspace = true }
 assert_cmd      = "2"
 predicates      = "3"
 tempfile        = { workspace = true }
+testcontainers  = "0.27"
+
+[features]
+# Enables the end-to-end integration test suite (`tests/e2e_integration.rs`),
+# which spins up a real `linuxserver/openssh-server` Docker container.
+# Tests skip+pass automatically when Docker is unavailable.
+integration = ["safessh-ssh/integration"]

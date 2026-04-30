@@ -75,105 +75,105 @@
     {
       "id": 10,
       "subject": "Task 10: Shell category matchers",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Implement read:safe, destructive:filesystem, destructive:disk, privilege:escalation, system:control, network:listen, exec:opaque (excluding known SQL interpreters).\n\n**Verify:** `cargo test --package safessh-policy --test categories_shell`\n\n```json:metadata\n{\"files\": [\"crates/safessh-policy/src/categories/mod.rs\", \"crates/safessh-policy/src/categories/shell.rs\", \"crates/safessh-policy/tests/categories_shell.rs\"], \"verifyCommand\": \"cargo test --package safessh-policy\", \"acceptanceCriteria\": [\"per-category 3 positive + 1 negative tests\", \"psql -c is NOT exec:opaque\", \"find -delete IS destructive:filesystem\"]}\n```",
       "blockedBy": [9]
     },
     {
       "id": 11,
       "subject": "Task 11: SQL-aware categories",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Detect db:read, db:write, destructive:db by extracting SQL from psql -c / mysql -e / sqlite3 and parsing with sqlparser.\n\n**Verify:** `cargo test --package safessh-policy --test categories_sql`\n\n```json:metadata\n{\"files\": [\"crates/safessh-policy/src/categories/sql.rs\", \"crates/safessh-policy/tests/categories_sql.rs\"], \"verifyCommand\": \"cargo test --package safessh-policy\", \"acceptanceCriteria\": [\"SELECT → db:read\", \"DROP → destructive:db\", \"DELETE without WHERE → destructive:db\", \"DELETE WITH WHERE → db:write\"]}\n```",
       "blockedBy": [9]
     },
     {
       "id": 12,
       "subject": "Task 12: Decision engine",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Pure decide() function: block-list first, then policy.deny, then timed/always allow rules, else default-policy or RequireApproval. Default-deny on parse failure.\n\n**Verify:** `cargo test --package safessh-policy --test decision`\n\n```json:metadata\n{\"files\": [\"crates/safessh-policy/src/decision.rs\", \"crates/safessh-policy/tests/decision.rs\"], \"verifyCommand\": \"cargo test --package safessh-policy\", \"acceptanceCriteria\": [\"unparseable → RequireApproval (never Allow)\", \"block beats matching allow rule\", \"// SAFETY-INVARIANT-1 and -2 markers\"]}\n```",
       "blockedBy": [10, 11, 7]
     },
     {
       "id": 13,
       "subject": "Task 13: JSONL audit writer with redaction",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** AuditWriter appends one JSON line per event, fsync per line, rotates at 100MB, every event passes through Redactor.\n\n**Verify:** `cargo test --package safessh-audit`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/src/event.rs\", \"crates/safessh-audit/src/jsonl.rs\", \"crates/safessh-audit/tests/jsonl.rs\"], \"verifyCommand\": \"cargo test --package safessh-audit\", \"acceptanceCriteria\": [\"writes one JSON line per event\", \"file mode 0600\", \"AKIA token redacted in output\", \"// SAFETY-INVARIANT-4 marker on append\"]}\n```",
       "blockedBy": [4, 5]
     },
     {
       "id": 14,
       "subject": "Task 14: SshDriver trait + MockDriver",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** SshDriver trait with exec returning streamed OutputChunk + ExecResult. MockDriver for unit tests.\n\n**Verify:** `cargo test --package safessh-ssh --test mock`\n\n```json:metadata\n{\"files\": [\"crates/safessh-ssh/src/driver.rs\", \"crates/safessh-ssh/src/mock.rs\", \"crates/safessh-ssh/tests/mock.rs\"], \"verifyCommand\": \"cargo test --package safessh-ssh\", \"acceptanceCriteria\": [\"trait method exec returns streamed chunks\", \"MockDriver::with_response registers canned responses\"]}\n```",
       "blockedBy": [3, 5]
     },
     {
       "id": 15,
       "subject": "Task 15: OpenSSH subprocess driver",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** OpenSshDriver builds ssh argv from Target, spawns subprocess with ControlMaster, streams + size-caps output.\n\n**Verify:** `cargo test --package safessh-ssh --test openssh_unit`\n\n```json:metadata\n{\"files\": [\"crates/safessh-ssh/src/openssh.rs\", \"crates/safessh-ssh/src/control_master.rs\", \"crates/safessh-ssh/tests/openssh_unit.rs\", \"crates/safessh-ssh/tests/openssh_integration.rs\"], \"verifyCommand\": \"cargo test --package safessh-ssh\", \"acceptanceCriteria\": [\"argv for ssh-config alias correct\", \"argv for inline target includes -p/-i/-J/-J/user@host\", \"size caps trigger truncation\"]}\n```",
       "blockedBy": [14]
     },
     {
       "id": 16,
       "subject": "Task 16: Skill content + format adapters",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Embed canonical safessh.md. Implement claude-code (YAML frontmatter) and agents-md (## section) adapters.\n\n**Verify:** `cargo test --package safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/content/safessh.md\", \"crates/safessh-skill/src/adapters/mod.rs\", \"crates/safessh-skill/src/adapters/claude_code.rs\", \"crates/safessh-skill/src/adapters/agents_md.rs\", \"crates/safessh-skill/tests/adapters.rs\"], \"verifyCommand\": \"cargo test --package safessh-skill\", \"acceptanceCriteria\": [\"insta snapshots committed for both adapters\", \"skill content covers BLOCKED token handling and output framing\"]}\n```",
       "blockedBy": [3]
     },
     {
       "id": 17,
       "subject": "Task 17: Skill detection + install logic",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Detect installed agents, install/uninstall/show/check at correct paths, handle agents-md section append/strip.\n\n**Verify:** `cargo test --package safessh-skill --test install`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/detection.rs\", \"crates/safessh-skill/src/install.rs\", \"crates/safessh-skill/tests/install.rs\"], \"verifyCommand\": \"cargo test --package safessh-skill\", \"acceptanceCriteria\": [\"detect() returns Detected entries\", \"install_to claude-code creates file\", \"install_to agents-md appends section without duplicates\", \"uninstall_at agents-md removes only safessh section\"]}\n```",
       "blockedBy": [16]
     },
     {
       "id": 18,
       "subject": "Task 18: CLI skeleton",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** clap structure, main entrypoint, error→exit-code mapping, --version, --help.\n\n**Verify:** `cargo test --package safessh-cli --test skeleton`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/cli.rs\", \"crates/safessh-cli/src/main.rs\", \"crates/safessh-cli/src/errors.rs\", \"crates/safessh-cli/tests/skeleton.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"--version prints safessh 0.1.0\", \"--help lists project/policy/approve/audit/skill\", \"unknown subcommand exits 2\"]}\n```",
       "blockedBy": [3]
     },
     {
       "id": 19,
       "subject": "Task 19: Project subcommands",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Wire project add/list/edit/remove to ProjectStore.\n\n**Verify:** `cargo test --package safessh-cli --test project_cmd`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-cli/src/commands/project.rs\", \"crates/safessh-cli/tests/project_cmd.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"add writes TOML\", \"list prints alphabetical names\", \"remove fails with exit 1 if missing\", \"edit spawns $EDITOR\"]}\n```",
       "blockedBy": [18, 6]
     },
     {
       "id": 20,
       "subject": "Task 20: Exec end-to-end (headless)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** safessh <project> exec wires policy → audit → ssh-driver → framed output. Headless flow only.\n\n**Verify:** `cargo test --package safessh-cli --test exec`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/exec.rs\", \"crates/safessh-cli/src/output.rs\", \"crates/safessh-cli/tests/exec.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"BLOCKED multi-line output for RequireApproval (exit 10)\", \"audit log gains exec_attempt + exec_complete\", \"output framing intact\", \"all bytes pass through Redactor\"]}\n```",
       "blockedBy": [18, 12, 13, 15, 7]
     },
     {
       "id": 21,
       "subject": "Task 21: TTY detection + inline approval prompt",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** When stdin is TTY, show 5-action dialoguer prompt. Apply action to persistent stores. Override via SAFESSH_PROMPT_RESPONSE for tests.\n\n**Verify:** `cargo test --package safessh-cli --test prompt_unit`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/prompt.rs\", \"crates/safessh-cli/tests/prompt_unit.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"PromptAction enum: Once/Timed(min)/Always/Deny/Block\", \"canned 'timed:15' parses to Timed(15)\", \"persistent stores updated correctly per action\"]}\n```",
       "blockedBy": [20]
     },
     {
       "id": 22,
       "subject": "Task 22: approve <token> subcommand",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** safessh approve <token> [--once|--timed --minutes N|--always|--block] consumes pending request and applies action.\n\n**Verify:** `cargo test --package safessh-cli --test approve_cmd`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/approve.rs\", \"crates/safessh-cli/tests/approve_cmd.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"once removes pending\", \"--always adds AlwaysRule\", \"--timed --minutes 15 adds TimedRule\", \"unknown token exits 2\"]}\n```",
       "blockedBy": [18, 7]
     },
     {
       "id": 23,
       "subject": "Task 23: --yolo flag",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Top-level --yolo bypasses policy. Refused if disable_yolo=true. Audited as yolo_invocation. Output cap + redactor still apply.\n\n**Verify:** `cargo test --package safessh-cli --test yolo`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/cli.rs\", \"crates/safessh-cli/src/commands/exec.rs\", \"crates/safessh-cli/tests/yolo.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"yolo skips policy\", \"disable_yolo=true returns exit 13\", \"yolo audited and redacted\"]}\n```",
       "blockedBy": [20]
     },
     {
       "id": 24,
       "subject": "Task 24: Remaining subcommands (policy show, audit query, skill)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Wire policy show <category|project>, audit query (grep over JSONL), skill install/uninstall/show/check.\n\n**Verify:** `cargo test --package safessh-cli --test misc_cmds`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/policy.rs\", \"crates/safessh-cli/src/commands/audit.rs\", \"crates/safessh-cli/src/commands/skill.rs\", \"crates/safessh-cli/tests/misc_cmds.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"policy show lists category binaries\", \"audit query filters by project/type/grep\", \"skill install --target claude-code --scope user writes file\", \"skill check reports per-target status\"]}\n```",
       "blockedBy": [18, 17, 13]
     },
