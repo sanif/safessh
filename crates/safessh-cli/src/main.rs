@@ -8,6 +8,7 @@ use clap::Parser;
 mod cli;
 mod commands;
 mod errors;
+mod output;
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +25,9 @@ async fn main() {
 
     match parsed.command {
         cli::TopCmd::External(args) => {
-            println!("(exec dispatch not yet wired) args: {args:?}");
+            if let Err(e) = commands::exec::run(args).await {
+                errors::report_and_exit(e);
+            }
         }
         cli::TopCmd::Project { cmd } => {
             if let Err(e) = commands::project::run(cmd) {
