@@ -2,9 +2,15 @@ use safessh_storage::paths::Paths;
 use safessh_storage::project::{Approvals, OutputCaps, Policy, Project, ProjectStore, Target};
 
 fn temp_paths() -> (tempfile::TempDir, Paths) {
+    // Construct `Paths` directly to avoid the process-global `SAFESSH_HOME`
+    // env var racing across parallel tests.
     let dir = tempfile::tempdir().unwrap();
-    std::env::set_var("SAFESSH_HOME", dir.path());
-    let paths = Paths::user().unwrap();
+    let root = dir.path();
+    let paths = Paths {
+        config: root.join("config"),
+        state: root.join("state"),
+        cache: root.join("cache"),
+    };
     paths.ensure_dirs().unwrap();
     (dir, paths)
 }

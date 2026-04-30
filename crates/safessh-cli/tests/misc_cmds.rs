@@ -86,7 +86,14 @@ fn skill_install_agents_md_project_appends_section() {
     Command::cargo_bin("safessh")
         .unwrap()
         .current_dir(cwd)
-        .args(["skill", "install", "--target", "agents-md", "--scope", "project"])
+        .args([
+            "skill",
+            "install",
+            "--target",
+            "agents-md",
+            "--scope",
+            "project",
+        ])
         .assert()
         .success();
 

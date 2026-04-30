@@ -32,13 +32,7 @@ async fn mock_returns_canned_response() {
     let target = inline_target("web");
     let mut chunks: Vec<OutputChunk> = Vec::new();
     let result = mock
-        .exec(
-            &target,
-            "ls",
-            1024,
-            1024,
-            Box::new(|c| chunks.push(c)),
-        )
+        .exec(&target, "ls", 1024, 1024, Box::new(|c| chunks.push(c)))
         .await
         .expect("exec should succeed");
 
@@ -70,13 +64,7 @@ async fn mock_streams_stdout_and_stderr() {
     let target = inline_target("db");
     let mut chunks: Vec<OutputChunk> = Vec::new();
     let result = mock
-        .exec(
-            &target,
-            "uptime",
-            1024,
-            1024,
-            Box::new(|c| chunks.push(c)),
-        )
+        .exec(&target, "uptime", 1024, 1024, Box::new(|c| chunks.push(c)))
         .await
         .expect("exec should succeed");
 
@@ -94,13 +82,7 @@ async fn mock_unmatched_call_returns_empty_success() {
     let target = inline_target("none");
     let mut chunks: Vec<OutputChunk> = Vec::new();
     let result = mock
-        .exec(
-            &target,
-            "whoami",
-            1024,
-            1024,
-            Box::new(|c| chunks.push(c)),
-        )
+        .exec(&target, "whoami", 1024, 1024, Box::new(|c| chunks.push(c)))
         .await
         .expect("exec should succeed");
 

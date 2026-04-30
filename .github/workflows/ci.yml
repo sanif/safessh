@@ -40,6 +40,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
+      # Run keyring mock tests (gated behind test-support so the bare
+      # `cargo test --workspace` line above does not require it).
+      - run: cargo test -p safessh-storage --features test-support --test keyring
 
   integration:
     runs-on: ubuntu-22.04

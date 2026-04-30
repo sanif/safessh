@@ -11,12 +11,42 @@ use safessh_storage::paths::Paths;
 use safessh_storage::project::ProjectStore;
 
 const READ_SAFE_BINS: &[&str] = &[
-    "ls", "cat", "head", "tail", "grep", "stat", "file", "wc", "sort", "uniq", "which", "whereis",
-    "pwd", "id", "whoami", "uname", "date", "uptime", "df", "du", "free", "ps", "top", "echo",
-    "printf", "find (without -delete/-exec)",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "grep",
+    "stat",
+    "file",
+    "wc",
+    "sort",
+    "uniq",
+    "which",
+    "whereis",
+    "pwd",
+    "id",
+    "whoami",
+    "uname",
+    "date",
+    "uptime",
+    "df",
+    "du",
+    "free",
+    "ps",
+    "top",
+    "echo",
+    "printf",
+    "find (without -delete/-exec)",
 ];
 
-const DESTRUCTIVE_FS_BINS: &[&str] = &["rm", "rmdir", "unlink", "shred", "find -delete", "find -exec"];
+const DESTRUCTIVE_FS_BINS: &[&str] = &[
+    "rm",
+    "rmdir",
+    "unlink",
+    "shred",
+    "find -delete",
+    "find -exec",
+];
 
 const DESTRUCTIVE_DISK_BINS: &[&str] = &["dd", "fdisk", "parted", "wipefs", "mkfs", "mkfs.*"];
 
@@ -119,8 +149,6 @@ pub fn run(what: String) -> Result<()> {
             }
             Ok(())
         }
-        Err(_) => Err(Error::Usage(format!(
-            "unknown category or project: {what}"
-        ))),
+        Err(_) => Err(Error::Usage(format!("unknown category or project: {what}"))),
     }
 }

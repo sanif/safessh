@@ -61,7 +61,10 @@ fn content_covers_required_topics() {
     // 4. Output framing format
     assert!(body.contains("<stdout>"), "missing '<stdout>' framing");
     assert!(body.contains("<stderr>"), "missing '<stderr>' framing");
-    assert!(body.contains("<exit code="), "missing '<exit code=' framing");
+    assert!(
+        body.contains("<exit code="),
+        "missing '<exit code=' framing"
+    );
     // 5. --yolo discouragement
     assert!(body.contains("--yolo"), "missing '--yolo' discussion");
     assert!(

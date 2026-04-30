@@ -110,14 +110,9 @@ fn install(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> 
     Ok(())
 }
 
-fn uninstall(
-    target: Option<String>,
-    scope: SkillScope,
-    path: Option<PathBuf>,
-) -> Result<()> {
-    let target_str = target.ok_or_else(|| {
-        Error::Usage("specify --target <claude-code|agents-md>".into())
-    })?;
+fn uninstall(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> Result<()> {
+    let target_str =
+        target.ok_or_else(|| Error::Usage("specify --target <claude-code|agents-md>".into()))?;
     let cwd = cwd()?;
     let target = parse_target(&target_str)?;
     let dest = resolve_dest(target, scope, path, &cwd)?;
@@ -133,9 +128,7 @@ fn resolve_dest(
     cwd: &Path,
 ) -> Result<PathBuf> {
     if matches!(scope, SkillScope::Path) {
-        let dir = path.ok_or_else(|| {
-            Error::Usage("--scope path requires --path <dir>".into())
-        })?;
+        let dir = path.ok_or_else(|| Error::Usage("--scope path requires --path <dir>".into()))?;
         return Ok(dir.join(safessh_skill::adapters::filename(target)));
     }
     default_path(target, map_scope(scope), cwd).ok_or_else(|| {
@@ -206,10 +199,7 @@ fn report_path(label: &str, scope: &str, path: Option<&Path>, target: Target) {
             }
         }
         Err(e) => {
-            println!(
-                "[{label} {scope}] error reading {}: {e}",
-                path.display()
-            );
+            println!("[{label} {scope}] error reading {}: {e}", path.display());
         }
     }
 }

@@ -33,7 +33,11 @@ pub fn write_framed(stdout: &[u8], stderr: &[u8], exit: i32, duration_ms: u64, t
     let _ = writeln!(h, "<stderr>");
     let _ = h.write_all(stderr);
     let _ = writeln!(h, "</stderr>");
-    let trunc = if truncated { r#" truncated="true""# } else { "" };
+    let trunc = if truncated {
+        r#" truncated="true""#
+    } else {
+        ""
+    };
     let _ = writeln!(
         h,
         r#"<exit code="{exit}" duration="{duration_ms}ms"{trunc}/>"#

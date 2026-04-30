@@ -180,14 +180,14 @@
     {
       "id": 25,
       "subject": "Task 25: End-to-end integration test",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Real SSH server in Docker, full happy-path + approval round-trip + ControlMaster reuse, gated by --features integration.\n\n**Verify:** `cargo test --package safessh-cli --features integration --test e2e_integration`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/tests/e2e_integration.rs\", \"tests/fixtures/gen-keys.sh\"], \"verifyCommand\": \"cargo test --package safessh-cli --features integration\", \"acceptanceCriteria\": [\"happy path echo hello succeeds with exit 0 and framing\", \"approval round-trip: blocked → approve → succeeds\", \"second invocation faster than first (ControlMaster)\"]}\n```",
       "blockedBy": [21, 22, 23, 24]
     },
     {
       "id": 26,
       "subject": "Task 26: User-facing documentation",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** README + docs/getting-started + cli-reference + skill + security + development.\n\n**Verify:** Manual review — no TBDs/TODOs.\n\n```json:metadata\n{\"files\": [\"README.md\", \"docs/getting-started.md\", \"docs/cli-reference.md\", \"docs/skill.md\", \"docs/security.md\", \"docs/development.md\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"README has tagline + 3 install paths + quick start + features table\", \"each doc under 300 lines\", \"no placeholders\"]}\n```",
       "blockedBy": [18]
     },

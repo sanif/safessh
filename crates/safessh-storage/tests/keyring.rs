@@ -3,7 +3,11 @@
 //! Run with `cargo test --package safessh-storage --features test-support
 //! --test keyring`. We deliberately do not exercise `SystemKeychain` from CI
 //! because the OS keychain backends are not available in headless
-//! environments.
+//! environments. This file is gated behind `feature = "test-support"` so that
+//! a bare `cargo test --workspace` (which does not enable that feature)
+//! continues to compile cleanly.
+
+#![cfg(feature = "test-support")]
 
 use safessh_storage::keyring::{mock::MockKeychain, KeychainProvider};
 

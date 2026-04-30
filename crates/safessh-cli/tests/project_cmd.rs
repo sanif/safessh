@@ -31,10 +31,9 @@ fn add_with_alias_then_list() {
         .stdout(contains("prod"));
 
     // Verify the file exists with the expected SshConfigAlias target.
-    let toml = std::fs::read_to_string(
-        dir.path().join("config").join("projects").join("prod.toml"),
-    )
-    .unwrap();
+    let toml =
+        std::fs::read_to_string(dir.path().join("config").join("projects").join("prod.toml"))
+            .unwrap();
     assert!(toml.contains("ssh_config_alias = \"prod-host\""), "{toml}");
 }
 
@@ -43,14 +42,25 @@ fn add_with_inline_target_writes_host_user_port() {
     let dir = tempfile::tempdir().unwrap();
     safessh(dir.path())
         .args([
-            "project", "add", "stage", "--host", "h.example", "--user", "u", "--port", "2222",
+            "project",
+            "add",
+            "stage",
+            "--host",
+            "h.example",
+            "--user",
+            "u",
+            "--port",
+            "2222",
         ])
         .assert()
         .success()
         .stdout(contains("Created project: stage"));
 
     let toml = std::fs::read_to_string(
-        dir.path().join("config").join("projects").join("stage.toml"),
+        dir.path()
+            .join("config")
+            .join("projects")
+            .join("stage.toml"),
     )
     .unwrap();
     assert!(toml.contains("host = \"h.example\""), "{toml}");

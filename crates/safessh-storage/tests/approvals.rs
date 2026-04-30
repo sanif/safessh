@@ -6,9 +6,17 @@ use safessh_storage::approvals::*;
 use safessh_storage::paths::Paths;
 
 fn temp_paths() -> (tempfile::TempDir, Paths) {
+    // Construct `Paths` directly from a fresh tempdir. Avoid `SAFESSH_HOME`
+    // here — `std::env::set_var` is process-global, so when cargo runs tests
+    // in parallel within the same binary, two tests racing on `SAFESSH_HOME`
+    // would see each other's directories.
     let dir = tempfile::tempdir().unwrap();
-    std::env::set_var("SAFESSH_HOME", dir.path());
-    let paths = Paths::user().unwrap();
+    let root = dir.path();
+    let paths = Paths {
+        config: root.join("config"),
+        state: root.join("state"),
+        cache: root.join("cache"),
+    };
     paths.ensure_dirs().unwrap();
     (dir, paths)
 }
