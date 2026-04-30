@@ -3,6 +3,7 @@
 pub mod approvals;
 pub mod atomic;
 pub mod config;
+pub mod keyring;
 pub mod locking;
 pub mod paths;
 pub mod project;
