@@ -172,6 +172,20 @@ impl TimedStore {
             .collect())
     }
 
+    /// Remove a timed rule by id. Mirrors [`AlwaysStore::remove`] /
+    /// [`BlockedStore::remove`] so the TUI rules screen can delete from
+    /// any of the three persistent stores uniformly.
+    pub fn remove(&self, project: &str, rule_id: &str) -> Result<()> {
+        let path = self.dir.join(format!("{project}.toml"));
+        let list: RuleList<TimedRule> = load_or_default(&path)?;
+        let kept: Vec<_> = list
+            .rules
+            .into_iter()
+            .filter(|r| r.pattern.rule_id != rule_id)
+            .collect();
+        save_locked(&path, &RuleList { rules: kept })
+    }
+
     /// Rewrite the project's timed-rule file with expired entries removed.
     /// Returns the number of rules removed.
     pub fn purge_expired(&self, project: &str) -> Result<usize> {

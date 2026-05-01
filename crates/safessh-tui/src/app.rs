@@ -2,7 +2,12 @@
 //! lifecycle.
 
 use crate::event::{AppEvent, EventStream, FsEvent};
-use crate::screens::{approvals::ApprovalsScreen, projects::ProjectsScreen, Screen};
+use crate::screens::{
+    approvals::ApprovalsScreen,
+    projects::ProjectsScreen,
+    rules::{RuleTab, RulesScreen},
+    Screen,
+};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -29,6 +34,7 @@ pub struct App {
     pub current: Screen,
     pub projects: ProjectsScreen,
     pub approvals: ApprovalsScreen,
+    pub rules: RulesScreen,
 }
 
 impl App {
@@ -37,11 +43,13 @@ impl App {
             ProjectsScreen::load(&paths).unwrap_or_else(|_| ProjectsScreen::empty(&paths));
         let approvals =
             ApprovalsScreen::load(&paths).unwrap_or_else(|_| ApprovalsScreen::empty(&paths));
+        let rules = RulesScreen::load(&paths).unwrap_or_else(|_| RulesScreen::empty(&paths));
         Self {
             paths,
             current: Screen::Projects,
             projects,
             approvals,
+            rules,
         }
     }
 
@@ -93,6 +101,19 @@ impl App {
                     }
                 }
             }
+            Screen::Rules => match key.code {
+                KeyCode::Char('<') | KeyCode::Left => self.rules.move_project(-1),
+                KeyCode::Char('>') | KeyCode::Right => self.rules.move_project(1),
+                KeyCode::Char('1') => self.rules.switch_tab(RuleTab::Timed),
+                KeyCode::Char('2') => self.rules.switch_tab(RuleTab::Always),
+                KeyCode::Char('3') => self.rules.switch_tab(RuleTab::Blocked),
+                KeyCode::Up | KeyCode::Char('k') => self.rules.move_selection(-1),
+                KeyCode::Down | KeyCode::Char('j') => self.rules.move_selection(1),
+                KeyCode::Char('d') => {
+                    let _ = self.rules.apply_delete();
+                }
+                _ => {}
+            },
             _ => {}
         }
         AppAction::Redraw
@@ -106,11 +127,12 @@ impl App {
         ])
         .split(frame.area());
         crate::widgets::header(frame, chunks[0], self.header_text());
-        // Rules/Audit screens land in Tasks 9-10.
+        // Audit screen lands in Task 10.
         #[allow(clippy::single_match)]
         match self.current {
             Screen::Projects => self.projects.render(frame, chunks[1]),
             Screen::Approvals => self.approvals.render(frame, chunks[1]),
+            Screen::Rules => self.rules.render(frame, chunks[1]),
             _ => {}
         }
         crate::widgets::footer(frame, chunks[2], self.footer_text());

@@ -2,6 +2,7 @@
 
 pub mod approvals;
 pub mod projects;
+pub mod rules;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
