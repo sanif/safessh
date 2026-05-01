@@ -7,3 +7,4 @@ pub mod keyring;
 pub mod locking;
 pub mod paths;
 pub mod project;
+pub mod ssh_config;
