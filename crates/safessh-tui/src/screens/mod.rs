@@ -1,5 +1,6 @@
 //! Screen routing: every screen owns its state, render, and input handling.
 
+pub mod approvals;
 pub mod projects;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

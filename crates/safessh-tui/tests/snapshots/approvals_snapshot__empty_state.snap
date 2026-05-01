@@ -1,0 +1,6 @@
+---
+source: crates/safessh-tui/tests/approvals_snapshot.rs
+assertion_line: 42
+expression: render(&s)
+---
+No pending approvals.

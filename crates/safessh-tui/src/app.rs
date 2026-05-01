@@ -2,7 +2,7 @@
 //! lifecycle.
 
 use crate::event::{AppEvent, EventStream, FsEvent};
-use crate::screens::{projects::ProjectsScreen, Screen};
+use crate::screens::{approvals::ApprovalsScreen, projects::ProjectsScreen, Screen};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -28,16 +28,20 @@ pub struct App {
     pub paths: Paths,
     pub current: Screen,
     pub projects: ProjectsScreen,
+    pub approvals: ApprovalsScreen,
 }
 
 impl App {
     pub fn new(paths: Paths) -> Self {
         let projects =
             ProjectsScreen::load(&paths).unwrap_or_else(|_| ProjectsScreen::empty(&paths));
+        let approvals =
+            ApprovalsScreen::load(&paths).unwrap_or_else(|_| ApprovalsScreen::empty(&paths));
         Self {
             paths,
             current: Screen::Projects,
             projects,
+            approvals,
         }
     }
 
@@ -62,12 +66,34 @@ impl App {
             _ => {}
         }
         // Per-screen keys.
-        if self.current == Screen::Projects {
-            match key.code {
+        match self.current {
+            Screen::Projects => match key.code {
                 KeyCode::Up | KeyCode::Char('k') => self.projects.move_selection(-1),
                 KeyCode::Down | KeyCode::Char('j') => self.projects.move_selection(1),
                 _ => {}
+            },
+            Screen::Approvals => {
+                if self.approvals.picker_open {
+                    match key.code {
+                        KeyCode::Esc => self.approvals.close_picker(),
+                        KeyCode::Up | KeyCode::Char('k') => self.approvals.picker_move(-1),
+                        KeyCode::Down | KeyCode::Char('j') => self.approvals.picker_move(1),
+                        KeyCode::Enter => {
+                            let action = self.approvals.picker_action();
+                            let _ = self.approvals.apply_to_selected(action);
+                        }
+                        _ => {}
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => self.approvals.move_selection(-1),
+                        KeyCode::Down | KeyCode::Char('j') => self.approvals.move_selection(1),
+                        KeyCode::Enter => self.approvals.open_picker(),
+                        _ => {}
+                    }
+                }
             }
+            _ => {}
         }
         AppAction::Redraw
     }
@@ -80,11 +106,11 @@ impl App {
         ])
         .split(frame.area());
         crate::widgets::header(frame, chunks[0], self.header_text());
-        // Approvals/Rules/Audit screens land in Tasks 8-10; the
-        // single-arm match becomes wider then.
+        // Rules/Audit screens land in Tasks 9-10.
         #[allow(clippy::single_match)]
         match self.current {
             Screen::Projects => self.projects.render(frame, chunks[1]),
+            Screen::Approvals => self.approvals.render(frame, chunks[1]),
             _ => {}
         }
         crate::widgets::footer(frame, chunks[2], self.footer_text());
@@ -132,6 +158,9 @@ pub async fn run(paths: Paths) -> Result<()> {
             Some(AppEvent::Tick) => {}
             Some(AppEvent::Fs(FsEvent::ProjectsChanged)) => {
                 let _ = app.projects.reload();
+            }
+            Some(AppEvent::Fs(FsEvent::ApprovalsChanged)) => {
+                let _ = app.approvals.reload();
             }
             Some(AppEvent::Fs(_)) => {}
             None => break,
