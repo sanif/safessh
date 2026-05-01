@@ -37,6 +37,7 @@ pub struct App {
     pub approvals: ApprovalsScreen,
     pub rules: RulesScreen,
     pub audit: AuditScreen,
+    pub help_open: bool,
 }
 
 impl App {
@@ -54,6 +55,7 @@ impl App {
             approvals,
             rules,
             audit,
+            help_open: false,
         }
     }
 
@@ -71,8 +73,31 @@ impl App {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
+        // Help overlay swallows everything except quit + close.
+        if self.help_open {
+            match (key.code, key.modifiers) {
+                (KeyCode::Char('q'), _) => return AppAction::Quit,
+                (KeyCode::Char('c'), KeyModifiers::CONTROL) => return AppAction::Quit,
+                (KeyCode::Esc, _) | (KeyCode::Char('?'), _) => self.help_open = false,
+                _ => {}
+            }
+            return AppAction::Redraw;
+        }
+
         // Global keys first.
         match (key.code, key.modifiers) {
+            (KeyCode::Char('?'), _) => {
+                self.help_open = true;
+                return AppAction::Redraw;
+            }
+            (KeyCode::Tab, _) => {
+                self.current = self.current.next();
+                return AppAction::Redraw;
+            }
+            (KeyCode::BackTab, _) => {
+                self.current = self.current.prev();
+                return AppAction::Redraw;
+            }
             (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => return AppAction::Quit,
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => return AppAction::Quit,
             _ => {}
@@ -159,6 +184,9 @@ impl App {
             Screen::Audit => self.audit.render(frame, chunks[1]),
         }
         crate::widgets::footer(frame, chunks[2], self.footer_text());
+        if self.help_open {
+            crate::help::render_overlay(frame, frame.area());
+        }
     }
 }
 

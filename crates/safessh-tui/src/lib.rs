@@ -6,6 +6,7 @@
 
 mod app;
 pub mod event;
+pub mod help;
 pub mod screens;
 mod theme;
 pub mod watcher;
@@ -13,3 +14,4 @@ mod widgets;
 
 pub use app::{run, App, AppAction};
 pub use event::{AppEvent, EventStream, FsEvent};
+pub use help::help_text;
