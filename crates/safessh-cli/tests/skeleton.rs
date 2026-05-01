@@ -11,7 +11,7 @@ fn version_prints() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(contains("safessh 0.1.0"));
+        .stdout(contains("safessh 0.2.0"));
 }
 
 #[test]
