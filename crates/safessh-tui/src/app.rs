@@ -9,6 +9,7 @@ use crate::screens::{
     rules::{RuleTab, RulesScreen},
     Screen,
 };
+use crate::widgets::Toast;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -38,6 +39,7 @@ pub struct App {
     pub rules: RulesScreen,
     pub audit: AuditScreen,
     pub help_open: bool,
+    pub toast: Option<Toast>,
 }
 
 impl App {
@@ -56,6 +58,22 @@ impl App {
             rules,
             audit,
             help_open: false,
+            toast: None,
+        }
+    }
+
+    /// Show a transient toast for ~3s. Replaces any existing toast (no
+    /// stacking).
+    pub fn show_toast(&mut self, text: impl Into<String>) {
+        self.toast = Some(Toast::new(text, chrono::Duration::seconds(3)));
+    }
+
+    /// Clear the toast if it has expired. Cheap to call on every tick.
+    pub fn tick_toast(&mut self) {
+        if let Some(t) = &self.toast {
+            if t.is_expired(chrono::Utc::now()) {
+                self.toast = None;
+            }
         }
     }
 
@@ -202,6 +220,9 @@ impl App {
             Screen::Audit => self.audit.render(frame, chunks[1]),
         }
         crate::widgets::footer(frame, chunks[2], self.footer_text());
+        if let Some(toast) = &self.toast {
+            crate::widgets::render_toast(frame, frame.area(), toast);
+        }
         if self.help_open {
             crate::help::render_overlay(frame, frame.area());
         }
@@ -246,12 +267,16 @@ pub async fn run(paths: Paths) -> Result<()> {
                     break;
                 }
             }
-            Some(AppEvent::Tick) => {}
+            Some(AppEvent::Tick) => {
+                app.tick_toast();
+            }
             Some(AppEvent::Fs(FsEvent::ProjectsChanged)) => {
                 let _ = app.projects.reload();
+                app.show_toast("config changed externally — reloaded");
             }
             Some(AppEvent::Fs(FsEvent::ApprovalsChanged)) => {
                 let _ = app.approvals.reload();
+                app.show_toast("config changed externally — reloaded");
             }
             Some(AppEvent::Fs(FsEvent::AuditAppended)) => {
                 let _ = app.audit.append_tail();
