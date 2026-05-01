@@ -49,6 +49,10 @@ impl Paths {
         self.config.join("config.toml")
     }
 
+    pub fn ssh_config_snapshot(&self) -> PathBuf {
+        self.cache.join("ssh-config-snapshot.toml")
+    }
+
     pub fn ensure_dirs(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.config)?;
         std::fs::create_dir_all(&self.state)?;

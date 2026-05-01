@@ -2655,7 +2655,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safessh-audit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "safessh-core",
@@ -2668,7 +2668,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2695,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -2708,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-policy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "conch-parser",
@@ -2723,7 +2723,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-skill"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "dirs",
  "insta",
@@ -2736,7 +2736,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-ssh"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -2750,14 +2750,16 @@ dependencies = [
 
 [[package]]
 name = "safessh-storage"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "directories",
+ "filetime",
  "fs2",
  "keyring",
  "safessh-core",
  "serde",
+ "ssh2-config",
  "tempfile",
  "thiserror 1.0.69",
  "toml",
@@ -3067,6 +3069,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7bbffee862a796d67959a89859d6b1046bb5016d63e23835ad0da182777bbe0"
 dependencies = [
  "log",
+]
+
+[[package]]
+name = "ssh2-config"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2f7fc951533455d92036f8130c7888d883b9f776b1aa700cda1f7e63e515845"
+dependencies = [
+ "bitflags 2.11.1",
+ "dirs",
+ "thiserror 2.0.18",
+ "wildmatch",
 ]
 
 [[package]]
@@ -3812,6 +3826,12 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "wildmatch"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29333c3ea1ba8b17211763463ff24ee84e41c78224c16b001cd907e663a38c68"
 
 [[package]]
 name = "winapi"
