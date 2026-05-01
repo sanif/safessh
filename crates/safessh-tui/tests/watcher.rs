@@ -9,8 +9,13 @@ use tokio::sync::mpsc;
 
 fn setup() -> (tempfile::TempDir, Paths) {
     let tmp = tempfile::tempdir().unwrap();
-    std::env::set_var("SAFESSH_HOME", tmp.path());
-    let paths = Paths::user().unwrap();
+    // Construct Paths directly so parallel tests don't race on the
+    // process-wide SAFESSH_HOME env var.
+    let paths = Paths {
+        config: tmp.path().join("config"),
+        state: tmp.path().join("state"),
+        cache: tmp.path().join("cache"),
+    };
     paths.ensure_dirs().unwrap();
     (tmp, paths)
 }

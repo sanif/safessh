@@ -9,11 +9,11 @@ use safessh_tui::{App, AppAction};
 
 fn paths() -> Paths {
     let tmp = tempfile::tempdir().unwrap();
-    // SAFESSH_HOME is honored by Paths::user(); leak the tempdir for the
-    // duration of the test (per-test tmp dirs would cancel out the env
-    // override since Paths::user reads it once).
-    std::env::set_var("SAFESSH_HOME", tmp.path());
-    let p = Paths::user().unwrap();
+    let p = Paths {
+        config: tmp.path().join("config"),
+        state: tmp.path().join("state"),
+        cache: tmp.path().join("cache"),
+    };
     std::mem::forget(tmp);
     p
 }

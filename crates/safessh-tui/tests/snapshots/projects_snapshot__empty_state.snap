@@ -1,0 +1,6 @@
+---
+source: crates/safessh-tui/tests/projects_snapshot.rs
+assertion_line: 38
+expression: render(&screen)
+---
+No projects. Run `safessh project add <name> --alias <alias>` to add one.

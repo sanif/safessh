@@ -1,5 +1,6 @@
 //! Screen routing: every screen owns its state, render, and input handling.
-//! Concrete screens land in Tasks 7–10; this enum is the dispatch shell.
+
+pub mod projects;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {

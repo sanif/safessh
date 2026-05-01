@@ -1,18 +1,18 @@
 //! Top-level App state, screen routing, AppEvent loop, and terminal
 //! lifecycle.
-//!
-//! Concrete screens (projects/approvals/rules/audit) land in Tasks 7-10;
-//! this skeleton renders a placeholder header/footer and handles
-//! q/Ctrl-C/Esc → quit.
 
-use crate::event::{AppEvent, EventStream};
-use crate::screens::Screen;
+use crate::event::{AppEvent, EventStream, FsEvent};
+use crate::screens::{projects::ProjectsScreen, Screen};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{backend::CrosstermBackend, prelude::*, Terminal};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Layout},
+    Frame, Terminal,
+};
 use safessh_core::error::{Error, Result};
 use safessh_storage::paths::Paths;
 use std::io::Stdout;
@@ -27,26 +27,49 @@ pub enum AppAction {
 pub struct App {
     pub paths: Paths,
     pub current: Screen,
+    pub projects: ProjectsScreen,
 }
 
 impl App {
     pub fn new(paths: Paths) -> Self {
+        let projects =
+            ProjectsScreen::load(&paths).unwrap_or_else(|_| ProjectsScreen::empty(&paths));
         Self {
             paths,
             current: Screen::Projects,
+            projects,
         }
     }
 
-    /// Translate a key event into an action. The placeholder skeleton in
-    /// Task 5 handles only the global quit keys; per-screen routing and
-    /// the `?` overlay are wired in Task 11.
-    pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
-        match (key.code, key.modifiers) {
-            (KeyCode::Char('q'), _) => AppAction::Quit,
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) => AppAction::Quit,
-            (KeyCode::Esc, _) => AppAction::Quit,
-            _ => AppAction::None,
+    fn header_text(&self) -> &'static str {
+        match self.current {
+            Screen::Projects => "safessh — Projects",
+            Screen::Approvals => "safessh — Approvals",
+            Screen::Rules => "safessh — Rules",
+            Screen::Audit => "safessh — Audit",
         }
+    }
+
+    fn footer_text(&self) -> &'static str {
+        "q quit  Tab next  ↑↓/jk move"
+    }
+
+    pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
+        // Global keys first.
+        match (key.code, key.modifiers) {
+            (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => return AppAction::Quit,
+            (KeyCode::Char('c'), KeyModifiers::CONTROL) => return AppAction::Quit,
+            _ => {}
+        }
+        // Per-screen keys.
+        if self.current == Screen::Projects {
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => self.projects.move_selection(-1),
+                KeyCode::Down | KeyCode::Char('j') => self.projects.move_selection(1),
+                _ => {}
+            }
+        }
+        AppAction::Redraw
     }
 
     pub fn render(&self, frame: &mut Frame<'_>) {
@@ -56,8 +79,15 @@ impl App {
             Constraint::Length(1),
         ])
         .split(frame.area());
-        crate::widgets::header(frame, chunks[0], "safessh");
-        crate::widgets::footer(frame, chunks[2], "q quit  ?  help  Tab next screen");
+        crate::widgets::header(frame, chunks[0], self.header_text());
+        // Approvals/Rules/Audit screens land in Tasks 8-10; the
+        // single-arm match becomes wider then.
+        #[allow(clippy::single_match)]
+        match self.current {
+            Screen::Projects => self.projects.render(frame, chunks[1]),
+            _ => {}
+        }
+        crate::widgets::footer(frame, chunks[2], self.footer_text());
     }
 }
 
@@ -89,8 +119,6 @@ pub async fn run(paths: Paths) -> Result<()> {
     let mut tui = Tui::enter()?;
     let mut app = App::new(paths);
     let mut events = EventStream::new()?;
-    // _watcher's Drop fires when run() returns, tearing down the watch
-    // threads at the same moment the terminal is restored.
     let _watcher = crate::watcher::start_watcher(&app.paths, events.fs_tx.clone())?;
 
     loop {
@@ -102,7 +130,10 @@ pub async fn run(paths: Paths) -> Result<()> {
                 }
             }
             Some(AppEvent::Tick) => {}
-            Some(AppEvent::Fs(_)) => {} // wired in Task 6+
+            Some(AppEvent::Fs(FsEvent::ProjectsChanged)) => {
+                let _ = app.projects.reload();
+            }
+            Some(AppEvent::Fs(_)) => {}
             None => break,
         }
     }

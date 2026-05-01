@@ -3,6 +3,7 @@
 use directories::ProjectDirs;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone)]
 pub struct Paths {
     pub config: PathBuf,
     pub state: PathBuf,
