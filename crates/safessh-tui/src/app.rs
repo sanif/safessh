@@ -104,11 +104,29 @@ impl App {
         }
         // Per-screen keys.
         match self.current {
-            Screen::Projects => match key.code {
-                KeyCode::Up | KeyCode::Char('k') => self.projects.move_selection(-1),
-                KeyCode::Down | KeyCode::Char('j') => self.projects.move_selection(1),
-                _ => {}
-            },
+            Screen::Projects => {
+                if self.projects.import.is_some() {
+                    match key.code {
+                        KeyCode::Esc => self.projects.close_import(),
+                        KeyCode::Up | KeyCode::Char('k') => self.projects.import_move(-1),
+                        KeyCode::Down | KeyCode::Char('j') => self.projects.import_move(1),
+                        KeyCode::Char(' ') => self.projects.import_toggle(),
+                        KeyCode::Enter => {
+                            let _ = self.projects.import_commit();
+                        }
+                        _ => {}
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => self.projects.move_selection(-1),
+                        KeyCode::Down | KeyCode::Char('j') => self.projects.move_selection(1),
+                        KeyCode::Char('i') => {
+                            let _ = self.projects.open_import();
+                        }
+                        _ => {}
+                    }
+                }
+            }
             Screen::Approvals => {
                 if self.approvals.picker_open {
                     match key.code {

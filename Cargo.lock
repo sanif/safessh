@@ -2913,6 +2913,7 @@ dependencies = [
  "safessh-skill",
  "safessh-ssh",
  "safessh-storage",
+ "safessh-tui",
  "serde",
  "serde_json",
  "tempfile",
