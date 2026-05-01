@@ -1,0 +1,22 @@
+[package]
+name = "safessh-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+safessh-core = { workspace = true }
+safessh-storage = { workspace = true }
+safessh-audit = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+notify = { workspace = true }
+notify-debouncer-mini = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+tempfile = { workspace = true }

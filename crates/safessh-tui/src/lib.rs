@@ -1,0 +1,14 @@
+//! safessh's TUI: ratatui screens that share storage with the CLI.
+//!
+//! All file mutations go through the same `safessh-storage` API the CLI
+//! uses (PendingStore, AlwaysStore, etc.) so atomic-write + locking
+//! semantics are preserved (SAFETY-INVARIANT-12).
+
+mod app;
+mod event;
+pub mod screens;
+mod theme;
+mod widgets;
+
+pub use app::{run, App, AppAction};
+pub use event::{AppEvent, EventStream, FsEvent};
