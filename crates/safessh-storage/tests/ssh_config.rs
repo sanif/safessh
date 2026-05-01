@@ -11,6 +11,15 @@ use std::sync::Mutex;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+/// RAII guard that removes `SSH_CONFIG_PATH` from the environment on drop,
+/// including when a test panics.
+struct EnvGuard;
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        std::env::remove_var("SSH_CONFIG_PATH");
+    }
+}
+
 fn fixture(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
     let path = dir.join("ssh_config");
     let mut f = std::fs::File::create(&path).unwrap();
@@ -32,6 +41,7 @@ fn make_paths(tmp: &tempfile::TempDir) -> Paths {
 #[test]
 fn parses_concrete_aliases() {
     let _guard = ENV_LOCK.lock().unwrap();
+    let _eg = EnvGuard;
     let tmp = tempfile::tempdir().unwrap();
     let p = fixture(
         tmp.path(),
@@ -48,6 +58,7 @@ fn parses_concrete_aliases() {
 #[test]
 fn excludes_wildcard_hosts() {
     let _guard = ENV_LOCK.lock().unwrap();
+    let _eg = EnvGuard;
     let tmp = tempfile::tempdir().unwrap();
     let p = fixture(
         tmp.path(),
@@ -63,6 +74,7 @@ fn excludes_wildcard_hosts() {
 #[test]
 fn missing_file_returns_empty() {
     let _guard = ENV_LOCK.lock().unwrap();
+    let _eg = EnvGuard;
     let tmp = tempfile::tempdir().unwrap();
     std::env::set_var("SSH_CONFIG_PATH", tmp.path().join("does-not-exist"));
     let paths = make_paths(&tmp);
@@ -73,6 +85,7 @@ fn missing_file_returns_empty() {
 #[test]
 fn snapshot_is_cached_and_reused() {
     let _guard = ENV_LOCK.lock().unwrap();
+    let _eg = EnvGuard;
     let tmp = tempfile::tempdir().unwrap();
     let p = fixture(tmp.path(), "Host one\n  HostName one.example.com\n");
     std::env::set_var("SSH_CONFIG_PATH", &p);
@@ -96,4 +109,21 @@ fn snapshot_is_cached_and_reused() {
         vec!["one"],
         "should re-use cached snapshot when mtime unchanged"
     );
+}
+
+#[test]
+fn duplicate_aliases_dedup_first_wins() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let _eg = EnvGuard;
+    let tmp = tempfile::tempdir().unwrap();
+    let p = fixture(
+        tmp.path(),
+        "Host dupe\n  HostName first.example.com\n\nHost dupe\n  HostName second.example.com\n",
+    );
+    std::env::set_var("SSH_CONFIG_PATH", &p);
+    let paths = make_paths(&tmp);
+    let snap = SshConfigSnapshot::load(&paths).unwrap();
+    let names: Vec<&str> = snap.aliases.iter().map(|a| a.alias.as_str()).collect();
+    assert_eq!(names, vec!["dupe"]);
+    assert_eq!(snap.aliases[0].hostname.as_deref(), Some("first.example.com"));
 }

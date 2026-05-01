@@ -10,6 +10,13 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+/// SSH-config alias snapshot.
+///
+/// Note: `ProxyJump` is intentionally omitted. The `ssh2-config` 0.3 crate
+/// routes ProxyJump into its `unsupported_fields` sink rather than exposing
+/// a typed field. Users who need ProxyJump should reference the alias via
+/// `Target::SshConfigAlias` (`safessh project add --alias <name>`) which
+/// delegates to `ssh` at exec time and respects the full ssh-config spec.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SshAlias {
     pub alias: String,
@@ -102,5 +109,6 @@ fn parse_file(path: &std::path::Path) -> Result<Vec<SshAlias>> {
         }
     }
     out.sort_by(|a, b| a.alias.cmp(&b.alias));
+    out.dedup_by_key(|a| a.alias.clone());
     Ok(out)
 }
