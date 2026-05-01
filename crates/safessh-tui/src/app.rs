@@ -4,6 +4,7 @@
 use crate::event::{AppEvent, EventStream, FsEvent};
 use crate::screens::{
     approvals::ApprovalsScreen,
+    audit::{AuditScreen, EditField},
     projects::ProjectsScreen,
     rules::{RuleTab, RulesScreen},
     Screen,
@@ -35,6 +36,7 @@ pub struct App {
     pub projects: ProjectsScreen,
     pub approvals: ApprovalsScreen,
     pub rules: RulesScreen,
+    pub audit: AuditScreen,
 }
 
 impl App {
@@ -44,12 +46,14 @@ impl App {
         let approvals =
             ApprovalsScreen::load(&paths).unwrap_or_else(|_| ApprovalsScreen::empty(&paths));
         let rules = RulesScreen::load(&paths).unwrap_or_else(|_| RulesScreen::empty(&paths));
+        let audit = AuditScreen::load(&paths).unwrap_or_else(|_| AuditScreen::empty(&paths));
         Self {
             paths,
             current: Screen::Projects,
             projects,
             approvals,
             rules,
+            audit,
         }
     }
 
@@ -114,7 +118,28 @@ impl App {
                 }
                 _ => {}
             },
-            _ => {}
+            Screen::Audit => {
+                if self.audit.editing.is_some() {
+                    match key.code {
+                        KeyCode::Esc => self.audit.cancel_edit(),
+                        KeyCode::Enter => self.audit.finish_edit(),
+                        KeyCode::Backspace => self.audit.pop_edit_char(),
+                        KeyCode::Char(c) => self.audit.push_edit_char(c),
+                        _ => {}
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => self.audit.move_selection(-1),
+                        KeyCode::Down | KeyCode::Char('j') => self.audit.move_selection(1),
+                        KeyCode::Char('g') => self.audit.jump_top(),
+                        KeyCode::Char('G') => self.audit.jump_bottom(),
+                        KeyCode::Char('p') => self.audit.begin_edit(EditField::Project),
+                        KeyCode::Char('t') => self.audit.begin_edit(EditField::Type),
+                        KeyCode::Char('/') => self.audit.begin_edit(EditField::Grep),
+                        _ => {}
+                    }
+                }
+            }
         }
         AppAction::Redraw
     }
@@ -127,13 +152,11 @@ impl App {
         ])
         .split(frame.area());
         crate::widgets::header(frame, chunks[0], self.header_text());
-        // Audit screen lands in Task 10.
-        #[allow(clippy::single_match)]
         match self.current {
             Screen::Projects => self.projects.render(frame, chunks[1]),
             Screen::Approvals => self.approvals.render(frame, chunks[1]),
             Screen::Rules => self.rules.render(frame, chunks[1]),
-            _ => {}
+            Screen::Audit => self.audit.render(frame, chunks[1]),
         }
         crate::widgets::footer(frame, chunks[2], self.footer_text());
     }
@@ -184,7 +207,9 @@ pub async fn run(paths: Paths) -> Result<()> {
             Some(AppEvent::Fs(FsEvent::ApprovalsChanged)) => {
                 let _ = app.approvals.reload();
             }
-            Some(AppEvent::Fs(_)) => {}
+            Some(AppEvent::Fs(FsEvent::AuditAppended)) => {
+                let _ = app.audit.append_tail();
+            }
             None => break,
         }
     }

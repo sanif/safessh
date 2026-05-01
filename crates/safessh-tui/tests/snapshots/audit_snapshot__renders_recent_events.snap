@@ -1,0 +1,17 @@
+---
+source: crates/safessh-tui/tests/audit_snapshot.rs
+assertion_line: 53
+expression: render(&s)
+---
+filters:  /p=-  /t=-  /g=-                                                                          
+┌Audit  (2 events, live)───────────────────────────────────────────────────────────────────────────┐
+│  TIME     TYPE                 PROJECT         SUMMARY                                           │
+│  10:15:00 exec_attempt         prod            ls                                                │
+│> 10:15:01 exec_complete        prod            exit=0                                            │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
