@@ -89,6 +89,9 @@ pub async fn run(paths: Paths) -> Result<()> {
     let mut tui = Tui::enter()?;
     let mut app = App::new(paths);
     let mut events = EventStream::new()?;
+    // _watcher's Drop fires when run() returns, tearing down the watch
+    // threads at the same moment the terminal is restored.
+    let _watcher = crate::watcher::start_watcher(&app.paths, events.fs_tx.clone())?;
 
     loop {
         tui.terminal.draw(|f| app.render(f)).map_err(Error::Io)?;

@@ -5,9 +5,10 @@
 //! semantics are preserved (SAFETY-INVARIANT-12).
 
 mod app;
-mod event;
+pub mod event;
 pub mod screens;
 mod theme;
+pub mod watcher;
 mod widgets;
 
 pub use app::{run, App, AppAction};
