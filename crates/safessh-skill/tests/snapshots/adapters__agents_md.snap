@@ -1,5 +1,6 @@
 ---
 source: crates/safessh-skill/tests/adapters.rs
+assertion_line: 11
 expression: "format(Target::AgentsMd, CONTENT)"
 ---
 ## safessh
@@ -34,20 +35,33 @@ credentials.
 
 ## Subcommands
 
-- `safessh <project> exec -- <command>` — run a command on the remote host.
-  The command is parsed and matched against the project's policy. If allowed
-  it runs; if it requires approval, safessh prints a `BLOCKED:` token; if it
-  is denied outright, safessh prints a `BLOCKED:` reason and exits non-zero.
+- `safessh <project> exec "<command>"` — run a command on the project's
+  default target. The command is parsed and matched against the project's
+  policy. If allowed it runs; if it requires approval, safessh prints a
+  `BLOCKED:` token; if it is denied outright, safessh prints a `BLOCKED:`
+  reason and exits non-zero.
+- `safessh <project> --on <target> exec "<command>"` — same, but routes
+  to a specific named target inside the project (multi-target setup).
+  Without `--on`, the project's `default_target` is used. Unknown target
+  names exit 2 with `usage: no such target: <name>`. Use this only when
+  the user explicitly asks for a specific target — otherwise let the
+  default route work.
 - `safessh project list` — list configured projects.
-- `safessh project add <name>` — interactively register a new project (the
-  user does this; do not run it on their behalf without being asked).
-- `safessh approve <token>` — approve a previously-blocked command using the
-  token printed by `exec`. The user typically runs this; only run it if the
-  user explicitly tells you to.
+- `safessh project add <name>` — register a new project (the user does
+  this; do not run it on their behalf without being asked).
+- `safessh project target list <project>` — list a project's targets,
+  marking the default with `[default]`. Useful when the user asks "what
+  targets does <project> have?".
+- `safessh approve <token>` — approve a previously-blocked command using
+  the token printed by `exec`. The user typically runs this; only run it
+  if the user explicitly tells you to.
 - `safessh policy show <project>` — print the effective policy for a project.
 - `safessh audit query` — query the local audit log of past commands.
 - `safessh skill install|uninstall|check` — manage this skill's installation
   in the user's agent frameworks.
+- `safessh tui` — launch the interactive UI. The user runs this themselves;
+  the TUI requires a real terminal and exits 1 if you try to invoke it
+  in a piped context.
 
 ## Output framing
 
