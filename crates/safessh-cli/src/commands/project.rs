@@ -19,25 +19,47 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             host,
             user,
             port,
+            import_ssh_config,
         } => {
-            let target = match (alias, host, user) {
-                (Some(a), _, _) => Target::SshConfigAlias {
+            let target = if let Some(alias_name) = import_ssh_config {
+                let snap = safessh_storage::ssh_config::SshConfigSnapshot::load(store.paths_ref())?;
+                let entry = snap
+                    .aliases
+                    .iter()
+                    .find(|a| a.alias == alias_name)
+                    .ok_or_else(|| Error::Config(format!("no ssh-config alias: {alias_name}")))?;
+                Target::Inline {
                     name: "default".into(),
-                    ssh_config_alias: a,
-                },
-                (None, Some(h), Some(u)) => Target::Inline {
-                    name: "default".into(),
-                    host: h,
-                    port,
-                    user: u,
-                    identity_file: None,
+                    host: entry.hostname.clone().unwrap_or_else(|| alias_name.clone()),
+                    port: entry.port.unwrap_or(22),
+                    user: entry
+                        .user
+                        .clone()
+                        .unwrap_or_else(|| std::env::var("USER").unwrap_or_default()),
+                    identity_file: entry.identity_file.clone(),
                     proxy_jump: None,
                     keychain_secret: None,
-                },
-                _ => {
-                    return Err(Error::Usage(
-                        "specify --alias OR (--host AND --user)".into(),
-                    ))
+                }
+            } else {
+                match (alias, host, user) {
+                    (Some(a), _, _) => Target::SshConfigAlias {
+                        name: "default".into(),
+                        ssh_config_alias: a,
+                    },
+                    (None, Some(h), Some(u)) => Target::Inline {
+                        name: "default".into(),
+                        host: h,
+                        port,
+                        user: u,
+                        identity_file: None,
+                        proxy_jump: None,
+                        keychain_secret: None,
+                    },
+                    _ => {
+                        return Err(Error::Usage(
+                            "specify --alias OR (--host AND --user) OR --import-ssh-config".into(),
+                        ))
+                    }
                 }
             };
             let project = Project {

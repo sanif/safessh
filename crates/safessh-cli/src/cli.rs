@@ -79,6 +79,14 @@ pub enum ProjectCmd {
         user: Option<String>,
         #[arg(long, default_value_t = 22)]
         port: u16,
+        /// Materialize the new project's first target by importing values
+        /// from `~/.ssh/config` (or `$SSH_CONFIG_PATH`). The matching `Host`
+        /// block's `HostName`/`User`/`Port`/`IdentityFile` populate an
+        /// `Inline` target. `ProxyJump` is *not* imported (ssh2-config 0.3
+        /// does not expose it); use `--alias` to defer to ssh-config at
+        /// exec time when ProxyJump is required.
+        #[arg(long, conflicts_with_all = ["alias", "host", "user"])]
+        import_ssh_config: Option<String>,
     },
     List,
     Edit {

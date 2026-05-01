@@ -129,6 +129,13 @@ impl ProjectStore {
         Self { paths }
     }
 
+    /// Borrow the underlying [`Paths`] so callers can pass the same handle
+    /// to other storage modules (e.g. `ssh_config::SshConfigSnapshot::load`)
+    /// without re-walking env vars.
+    pub fn paths_ref(&self) -> &Paths {
+        &self.paths
+    }
+
     pub fn save(&self, project: &Project) -> Result<()> {
         let path = self
             .paths
