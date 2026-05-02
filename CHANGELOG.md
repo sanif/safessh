@@ -5,7 +5,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-05-01
+## [0.2.0] - 2026-05-02
 
 ### Added
 - Multi-target project support. Each project can hold multiple targets
