@@ -2898,7 +2898,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safessh-audit"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "safessh-core",
@@ -2911,7 +2911,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2940,7 +2940,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -2953,7 +2953,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-policy"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "conch-parser",
@@ -2969,7 +2969,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-skill"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dirs",
  "insta",
@@ -2982,7 +2982,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-ssh"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -2998,7 +2998,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "directories",
@@ -3015,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-tui"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "crossterm",
