@@ -5,7 +5,7 @@
 
 pub use safessh_core::types::AuditEvent;
 
-use safessh_core::types::ParsedCommand;
+use safessh_core::types::{ParsedCommand, PolicyDecision};
 use serde_json::json;
 
 /// Build an `exec_attempt` audit event.
@@ -64,4 +64,78 @@ pub fn yolo_invocation(project: &str, raw: &str) -> AuditEvent {
     e.project = Some(project.into());
     e.data = json!({ "raw": raw, "flagged": true });
     e
+}
+
+/// Build a `file_read` or `file_write` attempt audit event.
+///
+/// `event_type` should be `"file_read"` or `"file_write"`. Written
+/// **before** any user-visible output (SAFETY-INVARIANT-4 by callers).
+pub fn file_attempt(
+    event_type: &str,
+    project: &str,
+    path: &str,
+    decision: &PolicyDecision,
+) -> AuditEvent {
+    let mut e = AuditEvent::new(event_type);
+    e.project = Some(project.to_string());
+    e.data = json!({
+        "path": path,
+        "decision": decision_label(decision),
+    });
+    e
+}
+
+/// Build a `file_read_complete` audit event.
+pub fn file_read_complete(
+    project: &str,
+    target: &str,
+    path: &str,
+    bytes_returned: u64,
+    sha256: &str,
+    truncated: bool,
+    duration_ms: u64,
+) -> AuditEvent {
+    let mut e = AuditEvent::new("file_read_complete");
+    e.project = Some(project.to_string());
+    e.data = json!({
+        "target": target,
+        "path": path,
+        "bytes_returned": bytes_returned,
+        "sha256": sha256,
+        "truncated": truncated,
+        "duration_ms": duration_ms,
+    });
+    e
+}
+
+/// Build a `file_write_complete` audit event.
+pub fn file_write_complete(
+    project: &str,
+    target: &str,
+    path: &str,
+    bytes_written: u64,
+    sha256: &str,
+    truncated: bool,
+    duration_ms: u64,
+) -> AuditEvent {
+    let mut e = AuditEvent::new("file_write_complete");
+    e.project = Some(project.to_string());
+    e.data = json!({
+        "target": target,
+        "path": path,
+        "bytes_written": bytes_written,
+        "sha256": sha256,
+        "truncated": truncated,
+        "duration_ms": duration_ms,
+    });
+    e
+}
+
+fn decision_label(d: &PolicyDecision) -> &'static str {
+    match d {
+        PolicyDecision::Allow { .. } => "allow",
+        PolicyDecision::RequireApproval { .. } => "require_approval",
+        PolicyDecision::Deny { .. } => "deny",
+        PolicyDecision::Block { .. } => "block",
+    }
 }

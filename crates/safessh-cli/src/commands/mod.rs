@@ -3,6 +3,7 @@
 pub mod approve;
 pub mod audit;
 pub mod exec;
+pub mod file_common;
 pub mod policy;
 pub mod project;
 pub mod skill;
