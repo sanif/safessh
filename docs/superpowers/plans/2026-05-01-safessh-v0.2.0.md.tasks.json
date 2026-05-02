@@ -1,6 +1,6 @@
 {
   "planPath": "docs/superpowers/plans/2026-05-01-safessh-v0.2.0.md",
-  "lastUpdated": "2026-05-01T05:32:41Z",
+  "lastUpdated": "2026-05-01T12:00:00Z",
   "tasks": [
     {
       "id": 0,
@@ -21,7 +21,7 @@
     {
       "id": 2,
       "subject": "Task 2: --on <target> flag for <project> exec",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Add an optional `--on <target>` selector parsed out of the external-subcommand argv; resolves to a target by name in `Project::targets`, falling back to `default_target` when absent. Unknown target \u2192 exit 2 (Error::Usage).\n\n**Files:** crates/safessh-cli/src/commands/exec.rs, crates/safessh-cli/tests/exec.rs (+2 tests).\n\n**Verify:** `cargo test --package safessh-cli --test exec`\n\n**Acceptance:** --on db routes to db target, no --on uses default_target, unknown target exits 2 with `safessh: usage error: no such target: <name>`, --on placement anywhere in argv works.\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/exec.rs\", \"crates/safessh-cli/tests/exec.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test exec\", \"acceptanceCriteria\": [\"--on resolves named target\", \"absent --on uses default_target\", \"unknown target exits 2\", \"--on works anywhere in argv\"]}\n```",
       "blockedBy": [
         0
@@ -30,7 +30,7 @@
     {
       "id": 3,
       "subject": "Task 3: project target add/list/remove subcommands",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** New `safessh project target` subcommand group: add (alias OR inline), list (one-per-line with [default] marker), remove (refuses removing default_target).\n\n**Files:** crates/safessh-cli/src/cli.rs (+TargetCmd enum), crates/safessh-cli/src/commands/project.rs (target_run), crates/safessh-cli/src/main.rs (dispatch already in place via ProjectCmd::Target), crates/safessh-cli/tests/project_target.rs (new, 5 tests), crates/safessh-cli/tests/common/mod.rs (hoisted shared TestEnv).\n\n**Verify:** `cargo test --package safessh-cli --test project_target`\n\n**Acceptance:** alias add appends, inline add appends, list shows [default] marker, remove default refused (exit 1), remove unknown errors (exit 1), duplicate name rejected (exit 2).\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/cli.rs\", \"crates/safessh-cli/src/commands/project.rs\", \"crates/safessh-cli/src/main.rs\", \"crates/safessh-cli/tests/project_target.rs\", \"crates/safessh-cli/tests/common/mod.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test project_target\", \"acceptanceCriteria\": [\"target add alias appends\", \"target add inline requires host+user\", \"list marks default\", \"remove default refused\", \"remove unknown errors\", \"duplicate name rejected\"]}\n```",
       "blockedBy": [
         0
@@ -39,7 +39,7 @@
     {
       "id": 4,
       "subject": "Task 4: project add --import-ssh-config <alias>",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `project add` flag that imports target details from `~/.ssh/config` snapshot. Conflicts with --alias/--host/--user (clap-level). Materializes Inline target with snapshotted host/user/port/identity_file/proxy_jump.\n\n**Files:** crates/safessh-cli/src/cli.rs, crates/safessh-cli/src/commands/project.rs, crates/safessh-cli/tests/project_import.rs (new, 3 tests), crates/safessh-cli/tests/common/mod.rs (+write_ssh_config/read_project), crates/safessh-storage/src/project.rs (+ProjectStore::paths_ref).\n\n**Verify:** `cargo test --package safessh-cli --test project_import`\n\n**Acceptance:** import creates inline target with alias values, unknown alias \u2192 exit 1 with 'no ssh-config alias: <name>', conflicts with --alias exits 2.\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/cli.rs\", \"crates/safessh-cli/src/commands/project.rs\", \"crates/safessh-cli/tests/project_import.rs\", \"crates/safessh-cli/tests/common/mod.rs\", \"crates/safessh-storage/src/project.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test project_import\", \"acceptanceCriteria\": [\"import creates inline target\", \"unknown alias exits 1\", \"conflict with --alias exits 2\"]}\n```",
       "blockedBy": [
         1
@@ -48,7 +48,7 @@
     {
       "id": 5,
       "subject": "Task 5: Bootstrap safessh-tui crate",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** New `safessh-tui` crate with App skeleton, EventStream (crossterm + tokio ticker + fs-channel relay), terminal enter/leave via Drop guard, q/Ctrl-C/Esc quit. Renders header+footer with placeholder body.\n\n**Files:** Cargo.toml (workspace member + deps), crates/safessh-tui/Cargo.toml (new), crates/safessh-tui/src/{lib.rs,app.rs,event.rs,theme.rs,widgets.rs,screens/mod.rs} (all new), crates/safessh-tui/tests/routing.rs (new, 3 tests).\n\n**Verify:** `cargo build --package safessh-tui && cargo test --package safessh-tui --test routing`\n\n**Acceptance:** crate builds clean, q/Ctrl-C/Esc \u2192 AppAction::Quit, header text 'safessh' visible in TestBackend, terminal teardown in Drop.\n\n```json:metadata\n{\"files\": [\"Cargo.toml\", \"crates/safessh-tui/Cargo.toml\", \"crates/safessh-tui/src/lib.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/src/event.rs\", \"crates/safessh-tui/src/theme.rs\", \"crates/safessh-tui/src/widgets.rs\", \"crates/safessh-tui/src/screens/mod.rs\", \"crates/safessh-tui/tests/routing.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test routing\", \"acceptanceCriteria\": [\"crate builds\", \"q/Ctrl-C/Esc quit\", \"header rendered\", \"terminal teardown via Drop\"]}\n```",
       "blockedBy": [
         0
@@ -57,7 +57,7 @@
     {
       "id": 6,
       "subject": "Task 6: Notify-based filesystem watcher",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** notify-debouncer-mini watcher (200ms debounce) on pending/, projects/, and audit.log's parent dir; converts to FsEvent::ApprovalsChanged/ProjectsChanged/AuditAppended. Started inside App::run; guard tears down with TUI.\n\n**Files:** crates/safessh-tui/src/watcher.rs (new), crates/safessh-tui/src/lib.rs (export), crates/safessh-tui/src/app.rs (start + plumb fs_tx), crates/safessh-tui/tests/watcher.rs (new, 3 tests).\n\n**Verify:** `cargo test --package safessh-tui --test watcher`\n\n**Acceptance:** pending file write \u2192 ApprovalsChanged within 800ms, project write \u2192 ProjectsChanged, audit append \u2192 AuditAppended, debouncer collapses bursts, // SAFETY-INVARIANT-12 marker noting that fs events are signals to re-read via the storage API.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/watcher.rs\", \"crates/safessh-tui/src/lib.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/watcher.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test watcher\", \"acceptanceCriteria\": [\"pending write triggers ApprovalsChanged\", \"project write triggers ProjectsChanged\", \"audit append triggers AuditAppended\", \"bursts debounced\", \"SAFETY-INVARIANT-12 marker\"]}\n```",
       "blockedBy": [
         5
@@ -66,7 +66,7 @@
     {
       "id": 7,
       "subject": "Task 7: Projects screen (read-only)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Projects screen with sorted list (left) + detail pane (right) showing targets and policy. Up/Down/j/k navigate. Reloads on FsEvent::ProjectsChanged. Empty state instructs user to run project add.\n\n**Files:** crates/safessh-tui/src/screens/projects.rs (new), crates/safessh-tui/src/screens/mod.rs (export), crates/safessh-tui/src/app.rs (route + projects field + FS arm), crates/safessh-tui/tests/projects_snapshot.rs (new, 2 insta snapshots), crates/safessh-tui/src/snapshots/ (committed).\n\n**Verify:** `cargo test --package safessh-tui --test projects_snapshot && cargo insta accept --workspace`\n\n**Acceptance:** empty state message, list sorted, detail shows targets+policy, ProjectsChanged triggers reload, snapshots committed.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/projects.rs\", \"crates/safessh-tui/src/screens/mod.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/projects_snapshot.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test projects_snapshot\", \"acceptanceCriteria\": [\"empty state message\", \"sorted list\", \"detail pane shows targets+policy\", \"reload on FsEvent\", \"insta snapshots committed\"]}\n```",
       "blockedBy": [
         6
@@ -75,7 +75,7 @@
     {
       "id": 8,
       "subject": "Task 8: Approvals screen with 5-action picker",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Pending approvals queue with token/project/binary/categories/age columns. Enter opens centered picker (Once/Timed/Always/Deny/Block); selection writes through TimedStore/AlwaysStore/BlockedStore; pending file removed via PendingStore::take. Reloads on FsEvent::ApprovalsChanged.\n\n**Files:** crates/safessh-tui/src/screens/approvals.rs (new), crates/safessh-tui/src/screens/mod.rs (export), crates/safessh-tui/src/app.rs (route + FS arm), crates/safessh-tui/tests/approvals_snapshot.rs (new, 2 snapshots), crates/safessh-tui/tests/approvals_actions.rs (new, 4 tests).\n\n**Verify:** `cargo test --package safessh-tui --test approvals_snapshot && cargo test --package safessh-tui --test approvals_actions`\n\n**Acceptance:** empty state, populated table snapshot, Once removes pending, Always\u2192AlwaysStore, Timed(15)\u2192TimedStore, Block\u2192BlockedStore, // SAFETY-INVARIANT-12 marker on the action-apply block.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/approvals.rs\", \"crates/safessh-tui/src/screens/mod.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/approvals_snapshot.rs\", \"crates/safessh-tui/tests/approvals_actions.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test approvals_actions\", \"acceptanceCriteria\": [\"empty state\", \"populated table\", \"Once removes pending\", \"Always writes AlwaysStore\", \"Timed writes TimedStore\", \"Block writes BlockedStore\", \"SAFETY-INVARIANT-12 marker\"]}\n```",
       "blockedBy": [
         6
@@ -84,7 +84,7 @@
     {
       "id": 9,
       "subject": "Task 9: Rules screen (timed/always/blocked)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Three-tab view of persistent rules per project. Project selector with </>/\u2190\u2192. 1/2/3 switch tabs. d deletes selected rule via store::remove. Adds TimedStore::remove (mirror of AlwaysStore::remove).\n\n**Files:** crates/safessh-tui/src/screens/rules.rs (new), crates/safessh-tui/src/screens/mod.rs (export), crates/safessh-tui/src/app.rs (route), crates/safessh-tui/tests/rules_snapshot.rs (new, 3 snapshots), crates/safessh-tui/tests/rules_actions.rs (new, 3 tests), crates/safessh-storage/src/approvals.rs (+TimedStore::remove).\n\n**Verify:** `cargo test --package safessh-tui --test rules_snapshot && cargo test --package safessh-tui --test rules_actions`\n\n**Acceptance:** project cycling, three tabs, per-tab empty state, delete removes from correct store, TimedStore::remove implemented + tested, // SAFETY-INVARIANT-12 marker on delete path.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/rules.rs\", \"crates/safessh-tui/src/screens/mod.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/rules_snapshot.rs\", \"crates/safessh-tui/tests/rules_actions.rs\", \"crates/safessh-storage/src/approvals.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test rules_actions\", \"acceptanceCriteria\": [\"project cycling\", \"3 tabs\", \"per-tab empty state\", \"delete from correct store\", \"TimedStore::remove added\", \"SAFETY-INVARIANT-12 marker\"]}\n```",
       "blockedBy": [
         6
@@ -93,7 +93,7 @@
     {
       "id": 10,
       "subject": "Task 10: Audit screen (tail + filters)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Live tail of audit.log (last 200 events). /p /t /g set project/type/grep filters. g/G top/bottom (G resumes auto-scroll). FsEvent::AuditAppended reads only the new tail (offset-tracked).\n\n**Files:** crates/safessh-tui/src/screens/audit.rs (new), crates/safessh-tui/src/screens/mod.rs (export), crates/safessh-tui/src/app.rs (route + FS arm), crates/safessh-tui/tests/audit_snapshot.rs (new, 2 snapshots), crates/safessh-tui/tests/audit_filters.rs (new, 3 tests).\n\n**Verify:** `cargo test --package safessh-tui --test audit_snapshot && cargo test --package safessh-tui --test audit_filters`\n\n**Acceptance:** empty state, populated tail snapshot, project/type/grep filters work, append_tail uses offset (no full re-read), rotation handled (new_len < offset \u2192 full_reload), G resumes auto-scroll.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/audit.rs\", \"crates/safessh-tui/src/screens/mod.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/audit_snapshot.rs\", \"crates/safessh-tui/tests/audit_filters.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test audit_filters\", \"acceptanceCriteria\": [\"empty state\", \"tail rendered\", \"3 filter types work\", \"offset-based append_tail\", \"rotation handled\", \"G resumes auto-scroll\"]}\n```",
       "blockedBy": [
         6
@@ -102,7 +102,7 @@
     {
       "id": 11,
       "subject": "Task 11: Screen routing + help overlay",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Tab/Shift-Tab cycle Projects\u2192Approvals\u2192Rules\u2192Audit. ? toggles help overlay; overlay swallows all input except Esc/?. help_text() exported for docs/tui.md.\n\n**Files:** crates/safessh-tui/src/help.rs (new), crates/safessh-tui/src/app.rs (cycle + overlay), crates/safessh-tui/src/lib.rs (re-export), crates/safessh-tui/tests/routing.rs (+3 tests).\n\n**Verify:** `cargo test --package safessh-tui --test routing`\n\n**Acceptance:** Tab cycles forward, Shift-Tab cycles back, ? opens/Esc closes overlay, overlay swallows other keys, help_text() public.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/help.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/src/lib.rs\", \"crates/safessh-tui/tests/routing.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test routing\", \"acceptanceCriteria\": [\"Tab cycles forward\", \"Shift-Tab cycles back\", \"? toggles overlay\", \"overlay swallows keys\", \"help_text exported\"]}\n```",
       "blockedBy": [
         7,
@@ -114,7 +114,7 @@
     {
       "id": 12,
       "subject": "Task 12: Wire `safessh tui` CLI subcommand",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Replace v0.1 placeholder in main.rs with `safessh_tui::run(paths).await`. Refuse non-TTY stdin with exit 1.\n\n**Files:** crates/safessh-cli/Cargo.toml (+safessh-tui dep), crates/safessh-cli/src/main.rs (Tui arm).\n\n**Verify:** `cargo build --workspace && cargo test --workspace` then manual `cargo run --bin safessh -- tui` opens TUI; non-TTY exits 1.\n\n**Acceptance:** safessh tui opens TUI, q quits cleanly, non-TTY exits 1 with `safessh: error: tui requires a TTY`, all v0.1 tests still pass.\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/Cargo.toml\", \"crates/safessh-cli/src/main.rs\"], \"verifyCommand\": \"cargo build --workspace && cargo test --workspace\", \"acceptanceCriteria\": [\"safessh tui opens TUI\", \"q quits\", \"non-TTY exits 1\", \"all existing tests pass\"]}\n```",
       "blockedBy": [
         11
@@ -123,7 +123,7 @@
     {
       "id": 13,
       "subject": "Task 13: ssh-config import inside projects screen",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `i` opens import dialog inside projects screen: multi-select aliases (Space toggles), Enter creates one project per checked entry (skipping existing names), Esc cancels. Reuses Task 1 snapshot loader.\n\n**Files:** crates/safessh-tui/src/screens/projects.rs (+ImportDialog state + open/close/move/toggle/commit), crates/safessh-tui/src/app.rs (branch on import-open), crates/safessh-tui/tests/projects_import.rs (new, 4 tests), crates/safessh-tui/tests/projects_snapshot.rs (+1 dialog snapshot).\n\n**Verify:** `cargo test --package safessh-tui --test projects_import`\n\n**Acceptance:** dialog loads aliases, Space toggles, Enter creates only checked, existing-name aliases skipped, list reloads after commit.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/projects.rs\", \"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/tests/projects_import.rs\", \"crates/safessh-tui/tests/projects_snapshot.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test projects_import\", \"acceptanceCriteria\": [\"dialog loads aliases\", \"Space toggles\", \"Enter creates checked\", \"existing names skipped\", \"reload after commit\"]}\n```",
       "blockedBy": [
         7,
@@ -133,7 +133,7 @@
     {
       "id": 14,
       "subject": "Task 14: External-edit toast",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Show transient `config changed externally \u2014 reloaded` toast on FS events; auto-clears after ~3s; second toast replaces first (no stacking). Required by spec \u00a77.3.\n\n**Files:** crates/safessh-tui/src/app.rs (toast state + show/clear + tick hook), crates/safessh-tui/src/widgets.rs (toast widget), crates/safessh-tui/tests/toast.rs (new, 2 tests).\n\n**Verify:** `cargo test --package safessh-tui --test toast`\n\n**Acceptance:** show_toast \u2192 toast.is_some(), expires_at past now \u2192 cleared on tick, second show replaces first.\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/app.rs\", \"crates/safessh-tui/src/widgets.rs\", \"crates/safessh-tui/tests/toast.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui --test toast\", \"acceptanceCriteria\": [\"show_toast sets state\", \"tick clears expired\", \"second toast replaces first\"]}\n```",
       "blockedBy": [
         11
@@ -142,7 +142,7 @@
     {
       "id": 15,
       "subject": "Task 15: docs/projects.md",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** New doc covering project model, single vs multi-target, ssh-config import (CLI + TUI), --on selector, snapshot caching.\n\n**Files:** docs/projects.md (new).\n\n**Verify:** Manual review; under 300 lines; no TODO/TBD.\n\n**Acceptance:** under 300 lines, no placeholders, copy-paste-runnable examples for project add (alias / inline / import), target add/list/remove, --on, explains alias-target vs --import distinction, cross-links spec \u00a74.4.\n\n```json:metadata\n{\"files\": [\"docs/projects.md\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"<= 300 lines\", \"no placeholders\", \"runnable examples\", \"explains alias vs import\", \"cross-links spec \u00a74.4\"]}\n```",
       "blockedBy": [
         4,
@@ -153,7 +153,7 @@
     {
       "id": 16,
       "subject": "Task 16: docs/tui.md",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** TUI doc with screens, keybindings (verbatim from help_text()), live-updates behavior, contributor snapshot workflow.\n\n**Files:** docs/tui.md (new).\n\n**Verify:** Manual review; under 300 lines; no TODO/TBD.\n\n**Acceptance:** under 300 lines, reproduces help-text block with sync note, ASCII layout per screen, notes TTY+notify+platform requirements.\n\n```json:metadata\n{\"files\": [\"docs/tui.md\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"<= 300 lines\", \"help-text reproduced verbatim\", \"layout per screen\", \"TTY/notify/platform notes\"]}\n```",
       "blockedBy": [
         11,
@@ -163,7 +163,7 @@
     {
       "id": 17,
       "subject": "Task 17: docs/approvals.md",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Approval lifecycle reference: 5 actions, store locations, matching rules, BLOCKED:<token> headless format, CLI vs TUI parity, links to invariants 7 & 12.\n\n**Files:** docs/approvals.md (new).\n\n**Verify:** Manual review; under 300 lines; no TODO/TBD.\n\n**Acceptance:** ASCII lifecycle diagram, documents BLOCKED:<token> format, explains CLI vs TUI parity, cross-links spec \u00a77.2 invariants 7 & 12.\n\n```json:metadata\n{\"files\": [\"docs/approvals.md\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"<= 300 lines\", \"lifecycle diagram\", \"BLOCKED format documented\", \"CLI/TUI parity noted\", \"links invariants 7 & 12\"]}\n```",
       "blockedBy": [
         8
@@ -172,7 +172,7 @@
     {
       "id": 18,
       "subject": "Task 18: README/CHANGELOG/cli-reference/skill updates",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Surface v0.2 changes: README features table flips, CHANGELOG [0.2.0] populated, cli-reference adds new flags+subcommands, skill markdown documents --on and notes safessh tui (regenerate insta snapshots).\n\n**Files:** README.md, CHANGELOG.md, docs/cli-reference.md, crates/safessh-skill/src/content/safessh.md, crates/safessh-skill/tests/snapshots/.\n\n**Verify:** `cargo test --workspace --features integration && cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings && wc -l docs/*.md`\n\n**Acceptance:** README features table updated for v0.2 + status line, CHANGELOG [0.2.0] entry complete, cli-reference covers --on + project target + import + tui, skill markdown has --on + tui note, snapshots regenerated and committed, no doc > 300 lines.\n\n```json:metadata\n{\"files\": [\"README.md\", \"CHANGELOG.md\", \"docs/cli-reference.md\", \"crates/safessh-skill/src/content/safessh.md\"], \"verifyCommand\": \"cargo test --workspace\", \"acceptanceCriteria\": [\"README features table flipped\", \"CHANGELOG [0.2.0] complete\", \"cli-reference covers new surface\", \"skill markdown updated\", \"snapshots regenerated\", \"no doc > 300 lines\"]}\n```",
       "blockedBy": [
         12,
