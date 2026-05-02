@@ -68,8 +68,27 @@ async fn main() {
             }
         }
         cli::TopCmd::Tui => {
-            eprintln!("safessh: tui lands in v0.2");
-            std::process::exit(1);
+            // The TUI needs a real terminal — refuse if stdin/stdout
+            // is being piped (e.g. CI logs). Exit code matches what
+            // we'd return for any other usage error.
+            if !atty::is(atty::Stream::Stdin) || !atty::is(atty::Stream::Stdout) {
+                eprintln!("safessh: error: tui requires a TTY");
+                std::process::exit(1);
+            }
+            let paths = match safessh_storage::paths::Paths::user() {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("safessh: io: {e}");
+                    std::process::exit(40);
+                }
+            };
+            if let Err(e) = paths.ensure_dirs() {
+                eprintln!("safessh: io: {e}");
+                std::process::exit(40);
+            }
+            if let Err(e) = safessh_tui::run(paths).await {
+                errors::report_and_exit(e);
+            }
         }
     }
 }

@@ -125,5 +125,8 @@ fn duplicate_aliases_dedup_first_wins() {
     let snap = SshConfigSnapshot::load(&paths).unwrap();
     let names: Vec<&str> = snap.aliases.iter().map(|a| a.alias.as_str()).collect();
     assert_eq!(names, vec!["dupe"]);
-    assert_eq!(snap.aliases[0].hostname.as_deref(), Some("first.example.com"));
+    assert_eq!(
+        snap.aliases[0].hostname.as_deref(),
+        Some("first.example.com")
+    );
 }
