@@ -61,6 +61,24 @@ pub struct Policy {
     pub require_approval: Vec<String>,
     #[serde(default)]
     pub deny: Vec<String>,
+    #[serde(default)]
+    pub file_rules: Vec<FileRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FileRule {
+    pub category: String,
+    pub paths: Vec<String>,
+    pub decision: FileDecision,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileDecision {
+    Allow,
+    Approve,
+    Deny,
+    Block,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +110,8 @@ pub struct OutputCaps {
     pub stderr_cap_bytes: u64,
     #[serde(default = "default_file_read_cap")]
     pub file_read_cap_bytes: u64,
+    #[serde(default = "default_file_write_cap")]
+    pub file_write_cap_bytes: u64,
     #[serde(default = "default_tunnel_ttl")]
     pub tunnel_ttl_minutes: u32,
 }
@@ -105,6 +125,9 @@ fn default_stderr_cap() -> u64 {
 fn default_file_read_cap() -> u64 {
     5_242_880
 }
+fn default_file_write_cap() -> u64 {
+    5_242_880
+}
 fn default_tunnel_ttl() -> u32 {
     30
 }
@@ -115,6 +138,7 @@ impl Default for OutputCaps {
             stdout_cap_bytes: default_stdout_cap(),
             stderr_cap_bytes: default_stderr_cap(),
             file_read_cap_bytes: default_file_read_cap(),
+            file_write_cap_bytes: default_file_write_cap(),
             tunnel_ttl_minutes: default_tunnel_ttl(),
         }
     }

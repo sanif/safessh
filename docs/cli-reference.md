@@ -1,6 +1,6 @@
 # CLI reference
 
-Everything the `safessh` binary exposes through v0.2. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
+Everything the `safessh` binary exposes through v0.3. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
 
 ## Global flags
 
@@ -42,6 +42,50 @@ The command runs through the policy engine. Possible outcomes:
 `--on` resolution: the value must match a `[[targets]] name` in the project TOML. Unknown target names exit 2 with `safessh: usage: usage: no such target: <name>`. Without `--on` the project's `default_target` is used (back-compat with v0.1).
 
 See [docs/projects.md](projects.md) for the multi-target model.
+
+## `safessh <project> [--on <target>] read <remote-path>`
+
+Fetch a remote file over sftp and write its contents to **stdout** using the same framing as `exec`.
+
+**Usage:**
+
+```sh
+safessh <project> read <remote-path>
+safessh <project> --on <target> read <remote-path>
+```
+
+**Example:**
+
+```sh
+safessh prod read /etc/hostname
+```
+
+The path is checked against the preset deny-list (sensitive paths such as `/etc/shadow`, `~/.ssh/id_*`) and then against the project's `[[policy.file_rules]]` in order. If no rule matches, the decision is `RequireApproval`. See [docs/files.md](files.md) for the full matching precedence and [docs/policy.md](policy.md) for the `[[policy.file_rules]]` schema.
+
+Output is capped at the project's `output_cap_bytes` (default 1 MiB). A truncated read exits with code 30.
+
+**Exit codes:** same table as `exec` — see [Exit codes](#exit-codes). File-operation-specific outcomes use the same codes (10 = approval required, 11 = blocked, 12 = denied, 30 = truncated).
+
+## `safessh <project> [--on <target>] write <remote-path>`
+
+Upload stdin to a remote path over sftp. The upload is atomic: the driver writes to a temp file and renames it into place on the remote side (SAFETY-INVARIANT-13 — a partial upload is never visible at the destination path).
+
+**Usage:**
+
+```sh
+safessh <project> write <remote-path>
+safessh <project> --on <target> write <remote-path>
+```
+
+**Example:**
+
+```sh
+echo "hello" | safessh prod write /tmp/hello.txt
+```
+
+Path matching follows the same precedence as `read`: preset deny-list → `[[policy.file_rules]]` → `RequireApproval`. The preset deny-list blocks writes to sensitive paths regardless of project config (SAFETY-INVARIANT-14).
+
+**Exit codes:** same table as `exec` — see [Exit codes](#exit-codes).
 
 ## `safessh project add <name> [flags]`
 

@@ -10,6 +10,7 @@
 
 use chrono::{Duration, Utc};
 use safessh_core::types::{AllowSource, PolicyDecision};
+use safessh_policy::decision::FileOp;
 use safessh_policy::{decide, DecisionInput};
 use safessh_storage::approvals::{PatternRule, TimedRule};
 use safessh_storage::project::Policy;
@@ -36,6 +37,8 @@ fn unparseable_requires_approval() {
         allows: &[],
         timed: &[],
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(d, PolicyDecision::RequireApproval { .. }),
@@ -59,6 +62,8 @@ fn block_takes_priority_over_allow() {
         allows: &allows,
         timed: &[],
         blocks: &blocks,
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(d, PolicyDecision::Block { .. }),
@@ -84,6 +89,8 @@ fn read_safe_with_default_policy_allows() {
         allows: &[],
         timed: &[],
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(
@@ -113,6 +120,8 @@ fn deny_overrides_default_allow() {
         allows: &[],
         timed: &[],
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(matches!(d, PolicyDecision::Deny { .. }), "got {d:?}");
 }
@@ -133,6 +142,8 @@ fn timed_rule_wins_over_default_require_approval() {
         allows: &[],
         timed: &timed,
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(
@@ -156,6 +167,8 @@ fn always_rule_allows_when_default_would_require_approval() {
         allows: &allows,
         timed: &[],
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(
@@ -184,6 +197,8 @@ fn require_approval_overrides_default_allow() {
         allows: &[],
         timed: &[],
         blocks: &[],
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(
         matches!(d, PolicyDecision::RequireApproval { .. }),
@@ -202,6 +217,8 @@ fn flags_match_is_subset() {
         allows: &[],
         timed: &[],
         blocks: &blocks,
+        file_op: FileOp::None,
+        preset_file_rules: &[],
     });
     assert!(matches!(d, PolicyDecision::Block { .. }), "got {d:?}");
 }

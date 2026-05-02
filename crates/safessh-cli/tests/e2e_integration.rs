@@ -185,6 +185,41 @@ fn install_ssh_wrapper(bin_dir: &Path) {
     }
 }
 
+/// Write a project TOML pointing the named project at the dockerized SSH
+/// server using inline target params. The keypair lives in the
+/// workspace `tests/fixtures/` dir.
+///
+/// The `project_name` is used as both the TOML `name` field and the file name
+/// so tests that need a different project slug (e.g. `"prod"`) don't have to
+/// duplicate this boilerplate.
+fn write_project_named(home: &Path, port: u16, project_name: &str) {
+    let projects = home.join("config/projects");
+    std::fs::create_dir_all(&projects).unwrap();
+    let id = fixtures_dir().join("id_ed25519");
+    let toml = format!(
+        r#"
+name = "{project_name}"
+default_target = "default"
+
+[[targets]]
+name = "default"
+host = "127.0.0.1"
+port = {port}
+user = "linuxserver.io"
+identity_file = "{}"
+
+[policy]
+allow = ["read:safe"]
+require_approval = ["destructive:filesystem"]
+
+[approvals]
+timed_default_minutes = 30
+"#,
+        id.display()
+    );
+    std::fs::write(projects.join(format!("{project_name}.toml")), toml).unwrap();
+}
+
 /// Write a project TOML pointing the demo project at the dockerized SSH
 /// server using inline target params. The keypair lives in the
 /// workspace `tests/fixtures/` dir.
@@ -356,5 +391,68 @@ async fn control_master_reuse_is_faster() {
     assert!(
         has_socket || d2 <= d1,
         "expected ControlMaster reuse: socket_present={has_socket}, d1={d1:?}, d2={d2:?}"
+    );
+}
+
+/// `safessh prod read /etc/shadow` must exit 12 (Denied by preset deny-list,
+/// SAFETY-INVARIANT-14) and must NOT produce a `file_read_complete` audit
+/// event — the policy engine must short-circuit before any SSH I/O.
+///
+/// A real container is used so the test verifies the CLI plumbing end-to-end;
+/// the policy decision fires before any SFTP call so the container itself is
+/// never contacted for the shadow read.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn read_blocks_etc_shadow_preset() {
+    if check_docker_available().is_none() {
+        eprintln!("skipped: Docker unavailable");
+        return;
+    }
+
+    let (_ct, port) = start_ssh_container().await;
+    wait_for_ssh(port).await;
+    let env = TestEnv::new();
+    write_project_named(env.safessh_home(), port, "prod");
+
+    // Ensure state dirs exist so the audit log can be written.
+    std::fs::create_dir_all(env.safessh_home().join("state")).unwrap();
+
+    let out = env
+        .safessh()
+        .args(["prod", "read", "/etc/shadow"])
+        .output()
+        .unwrap();
+
+    // SAFETY-INVARIANT-14: preset deny-list blocks /etc/shadow → exit 12.
+    assert_eq!(
+        out.status.code(),
+        Some(12),
+        "expected exit 12 (Denied) for /etc/shadow; got {:?}; stderr={}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // The audit log must contain a `file_read` attempt event with decision=deny.
+    // It must NOT contain a `file_read_complete` event (no SSH call was made).
+    let audit_path = env.safessh_home().join("state/audit.log");
+    let audit_content = std::fs::read_to_string(&audit_path).unwrap_or_default();
+
+    let has_attempt = audit_content.lines().any(|line| {
+        let v: serde_json::Value = serde_json::from_str(line).unwrap_or_default();
+        v["event_type"] == "file_read"
+            && v["data"]["path"] == "/etc/shadow"
+            && v["data"]["decision"] == "deny"
+    });
+    assert!(
+        has_attempt,
+        "expected file_read attempt event with decision=deny in audit log; log:\n{audit_content}"
+    );
+
+    let has_complete = audit_content.lines().any(|line| {
+        let v: serde_json::Value = serde_json::from_str(line).unwrap_or_default();
+        v["event_type"] == "file_read_complete"
+    });
+    assert!(
+        !has_complete,
+        "expected NO file_read_complete event (SSH must not have been called); log:\n{audit_content}"
     );
 }

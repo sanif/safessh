@@ -30,6 +30,7 @@ fn save_and_load_project() {
             allow: vec!["read:safe".into()],
             require_approval: vec!["destructive:filesystem".into()],
             deny: vec![],
+            file_rules: vec![],
         },
         approvals: Approvals::default(),
         output: OutputCaps::default(),

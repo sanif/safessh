@@ -5,7 +5,9 @@ use chrono::{Duration, Utc};
 use ratatui::{backend::TestBackend, Terminal};
 use safessh_storage::approvals::{AlwaysStore, BlockedStore, PatternRule, TimedRule, TimedStore};
 use safessh_storage::paths::Paths;
-use safessh_storage::project::{Approvals, OutputCaps, Policy, Project, ProjectStore, Target};
+use safessh_storage::project::{
+    Approvals, FileDecision, FileRule, OutputCaps, Policy, Project, ProjectStore, Target,
+};
 use safessh_tui::screens::rules::{RuleTab, RulesScreen};
 
 fn paths_with_project() -> Paths {
@@ -96,5 +98,36 @@ fn populated_blocked_tab() {
         .unwrap();
     let mut s = RulesScreen::load(&p).unwrap();
     s.switch_tab(RuleTab::Blocked);
+    insta::assert_snapshot!(render(&s));
+}
+
+#[test]
+fn rules_file_tab_empty() {
+    let p = paths_with_project();
+    let mut s = RulesScreen::load(&p).unwrap();
+    s.switch_tab(RuleTab::File);
+    insta::assert_snapshot!(render(&s));
+}
+
+#[test]
+fn rules_file_tab_populated() {
+    let p = paths_with_project();
+    let store = ProjectStore::new(p.clone());
+    let mut proj = store.load("prod").unwrap();
+    proj.policy.file_rules = vec![
+        FileRule {
+            category: "read".into(),
+            paths: vec!["/etc/passwd".into(), "/etc/shadow".into()],
+            decision: FileDecision::Allow,
+        },
+        FileRule {
+            category: "write".into(),
+            paths: vec!["/var/log/app.log".into()],
+            decision: FileDecision::Deny,
+        },
+    ];
+    store.save(&proj).unwrap();
+    let mut s = RulesScreen::load(&p).unwrap();
+    s.switch_tab(RuleTab::File);
     insta::assert_snapshot!(render(&s));
 }

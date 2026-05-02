@@ -19,6 +19,7 @@ use safessh_storage::approvals::{
     AlwaysStore, BlockedStore, PatternRule, PendingRequest, PendingStore, TimedRule, TimedStore,
 };
 use safessh_storage::paths::Paths;
+use safessh_storage::project::{FileDecision, FileRule, ProjectStore};
 
 #[derive(Debug, Clone, Copy)]
 pub enum PickerAction {
@@ -117,6 +118,54 @@ impl ApprovalsScreen {
         let pending = PendingStore::new(&self.paths);
         let _ = pending.take(&ApprovalToken::from_str(&req.token));
 
+        if is_file_op(&req) {
+            self.apply_file_op_action(&req, action)?;
+        } else {
+            self.apply_exec_action(&req, action)?;
+        }
+
+        self.picker_open = false;
+        self.reload()?;
+        Ok(())
+    }
+
+    /// Handle "Always allow" for a file-op approval by writing a `FileRule`
+    /// to `project.policy.file_rules` and saving the project.
+    fn apply_file_op_action(&self, req: &PendingRequest, action: PickerAction) -> Result<()> {
+        match action {
+            PickerAction::Always => {
+                // Determine which category string to use (take the first
+                // file:* category present).
+                let category = req
+                    .categories
+                    .iter()
+                    .find(|c| c.as_str() == "file:read" || c.as_str() == "file:write")
+                    .cloned()
+                    .unwrap_or_else(|| req.categories.first().cloned().unwrap_or_default());
+
+                let path_str = req.path.clone().unwrap_or_else(|| "*".to_string());
+
+                let store = ProjectStore::new(self.paths.clone());
+                let mut project = store.load(&req.project)?;
+                project.policy.file_rules.push(FileRule {
+                    category,
+                    paths: vec![path_str],
+                    decision: FileDecision::Allow,
+                });
+                store.save(&project)?;
+            }
+            // For all other actions on file ops: the pending file was already
+            // consumed above (take); no pattern rule needs writing.
+            PickerAction::Once
+            | PickerAction::Timed(_)
+            | PickerAction::Deny
+            | PickerAction::Block => {}
+        }
+        Ok(())
+    }
+
+    /// Handle actions for exec approvals — unchanged from the original path.
+    fn apply_exec_action(&self, req: &PendingRequest, action: PickerAction) -> Result<()> {
         let pattern = PatternRule {
             rule_id: format!("rule-{}", Utc::now().timestamp_millis()),
             binary: req.parsed.binary.clone(),
@@ -146,8 +195,6 @@ impl ApprovalsScreen {
                 BlockedStore::new(&self.paths).add(&req.project, pattern)?;
             }
         }
-        self.picker_open = false;
-        self.reload()?;
         Ok(())
     }
 
@@ -171,13 +218,32 @@ impl ApprovalsScreen {
                 } else {
                     format!("{}h ago", age.num_hours())
                 };
-                Row::new(vec![
-                    r.token.clone(),
-                    r.project.clone(),
-                    r.parsed.binary.clone(),
-                    r.categories.join(","),
-                    age_str,
-                ])
+                if is_file_op(r) {
+                    // File-op row: <token> <project> <category> <path>
+                    let category = r
+                        .categories
+                        .iter()
+                        .find(|c| c.as_str() == "file:read" || c.as_str() == "file:write")
+                        .cloned()
+                        .unwrap_or_else(|| r.categories.join(","));
+                    let path_col = r.path.clone().unwrap_or_default();
+                    Row::new(vec![
+                        r.token.clone(),
+                        r.project.clone(),
+                        category,
+                        path_col,
+                        age_str,
+                    ])
+                } else {
+                    // Exec row: <token> <project> <binary> <categories>
+                    Row::new(vec![
+                        r.token.clone(),
+                        r.project.clone(),
+                        r.parsed.binary.clone(),
+                        r.categories.join(","),
+                        age_str,
+                    ])
+                }
             })
             .collect();
         let widths = [
@@ -231,6 +297,14 @@ impl ApprovalsScreen {
             frame.render_stateful_widget(list, popup, &mut s);
         }
     }
+}
+
+/// Returns `true` when a pending request represents a file operation
+/// (`file:read` or `file:write`) rather than an exec.
+fn is_file_op(req: &PendingRequest) -> bool {
+    req.categories
+        .iter()
+        .any(|c| c == "file:read" || c == "file:write")
 }
 
 fn list_pending(paths: &Paths) -> Result<Vec<PendingRequest>> {

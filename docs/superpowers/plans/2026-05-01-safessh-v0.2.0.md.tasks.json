@@ -186,7 +186,7 @@
     {
       "id": 19,
       "subject": "Task 19: v0.2.0 release rehearsal",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Run release-checklist sequence: merge develop\u2192main, tag v0.2.0-rc.1, verify cargo-dist pipeline + clean-machine smoke (macOS arm64 + Linux x86_64), promote to v0.2.0, post-release CHANGELOG bookkeeping.\n\n**Files:** docs/RELEASE-CHECKLIST.md (version bump + v0.2 specifics).\n\n**Verify:** Manual rehearsal documented in PR body; tags v0.2.0-rc.1 and v0.2.0 reachable from main.\n\n**Acceptance:** rc.1 tag \u2192 4 binaries + Homebrew formula + curl installer; macOS+Linux smoke (`safessh tui` opens, q quits); v0.2.0 promoted; `chore: release v0.2.0` lands with date set and empty [Unreleased] re-added.\n\n```json:metadata\n{\"files\": [\"docs/RELEASE-CHECKLIST.md\", \"CHANGELOG.md\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"v0.2.0-rc.1 pipeline produces 4 binaries\", \"macOS arm64 smoke passes\", \"Linux x86_64 smoke passes\", \"v0.2.0 tag promoted\", \"chore: release v0.2.0 commit lands\"]}\n```",
       "blockedBy": [
         18

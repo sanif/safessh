@@ -79,6 +79,10 @@ Two flavours of category live under `safessh-policy::categories`:
 
 Similar shape, but in `crates/safessh-policy/src/categories/sql.rs`. The `classify_statement` match is the right hook. Note that SQL parse failure conservatively returns `db:write` (SAFETY-INVARIANT-1) — preserve that.
 
+### Policy categories and file rules
+
+File-operation policy (`[[policy.file_rules]]`) is a separate subsystem from shell/SQL categories — it matches on remote path globs rather than command argv. The preset deny-list lives in `crates/safessh-policy/src/file_rules/preset.rs` and is always evaluated first (SAFETY-INVARIANT-14). Project-level `[[policy.file_rules]]` entries come after, in declaration order. See [docs/policy.md](policy.md) for the full schema and matching algorithm.
+
 ## How to release
 
 Releases are driven by `cargo-dist`. The pipeline is configured in `dist-workspace.toml`.

@@ -25,6 +25,21 @@ pub struct ExecResult {
     pub truncated: bool,
 }
 
+/// Result returned by a completed `read_file` call.
+#[derive(Debug, Clone)]
+pub struct FileReadResult {
+    pub bytes: Vec<u8>,
+    pub canonical_path: String,
+    pub truncated: bool,
+}
+
+/// Result returned by a completed `write_file` call.
+#[derive(Debug, Clone)]
+pub struct FileWriteResult {
+    pub canonical_path: String,
+    pub bytes_written: u64,
+}
+
 /// Abstraction over "run a command on a target and stream its output".
 ///
 /// Implementations are expected to be cheap to clone or share via `Arc`. The
@@ -42,4 +57,18 @@ pub trait SshDriver: Send + Sync {
         stderr_cap: u64,
         on_chunk: Box<dyn FnMut(OutputChunk) + Send + 'a>,
     ) -> Result<ExecResult>;
+
+    async fn read_file(
+        &self,
+        target: &Target,
+        path: &str,
+        cap_bytes: u64,
+    ) -> Result<FileReadResult>;
+
+    async fn write_file(
+        &self,
+        target: &Target,
+        path: &str,
+        bytes: &[u8],
+    ) -> Result<FileWriteResult>;
 }

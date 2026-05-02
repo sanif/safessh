@@ -365,6 +365,66 @@ fn summarize(event_type: &str, v: &Value) -> String {
             .chars()
             .take(40)
             .collect(),
+        "file_read" => data
+            .and_then(|d| d.get("path"))
+            .and_then(|p| p.as_str())
+            .map(|p| format!("file_read {p}"))
+            .unwrap_or_else(|| "file_read".to_string()),
+        "file_write" => data
+            .and_then(|d| d.get("path"))
+            .and_then(|p| p.as_str())
+            .map(|p| format!("file_write {p}"))
+            .unwrap_or_else(|| "file_write".to_string()),
+        "file_read_complete" => {
+            let path = data
+                .and_then(|d| d.get("path"))
+                .and_then(|p| p.as_str())
+                .unwrap_or("");
+            let bytes = data
+                .and_then(|d| d.get("bytes_returned"))
+                .and_then(|b| b.as_u64())
+                .unwrap_or(0);
+            let truncated = data
+                .and_then(|d| d.get("truncated"))
+                .and_then(|t| t.as_bool())
+                .unwrap_or(false);
+            let fmt_bytes = format_bytes(bytes);
+            if truncated {
+                format!("file_read {path} ({fmt_bytes}, truncated)")
+            } else {
+                format!("file_read {path} ({fmt_bytes})")
+            }
+        }
+        "file_write_complete" => {
+            let path = data
+                .and_then(|d| d.get("path"))
+                .and_then(|p| p.as_str())
+                .unwrap_or("");
+            let bytes = data
+                .and_then(|d| d.get("bytes_written"))
+                .and_then(|b| b.as_u64())
+                .unwrap_or(0);
+            let truncated = data
+                .and_then(|d| d.get("truncated"))
+                .and_then(|t| t.as_bool())
+                .unwrap_or(false);
+            let fmt_bytes = format_bytes(bytes);
+            if truncated {
+                format!("file_write {path} ({fmt_bytes}, truncated)")
+            } else {
+                format!("file_write {path} ({fmt_bytes})")
+            }
+        }
         _ => String::new(),
+    }
+}
+
+fn format_bytes(b: u64) -> String {
+    if b < 1024 {
+        format!("{b}B")
+    } else if b < 1024 * 1024 {
+        format!("{:.1}KB", b as f64 / 1024.0)
+    } else {
+        format!("{:.1}MB", b as f64 / 1024.0 / 1024.0)
     }
 }
