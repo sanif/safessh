@@ -131,6 +131,51 @@ pub fn file_write_complete(
     e
 }
 
+/// Build a `tunnel_open` audit event. Carries the `opacity_warning` string
+/// so anyone tailing the audit log sees the warning inline.
+pub fn tunnel_open(
+    project: &str,
+    target: &str,
+    id: &safessh_core::tunnel::TunnelId,
+    spec: &safessh_core::tunnel::TunnelSpec,
+    expires_at: chrono::DateTime<chrono::Utc>,
+) -> AuditEvent {
+    let mut e = AuditEvent::new("tunnel_open");
+    e.project = Some(project.to_string());
+    e.data = json!({
+        "id": id.as_str(),
+        "target": target,
+        "local_port": spec.local_port,
+        "remote_host": spec.remote_host,
+        "remote_port": spec.remote_port,
+        "expires_at": expires_at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        "opacity_warning": "tunnel traffic is opaque to safessh",
+    });
+    e
+}
+
+/// Build a `tunnel_close` audit event. `duration_secs` is the wall-clock
+/// span between `tunnel_open` and the close, set by the supervisor.
+pub fn tunnel_close(
+    project: &str,
+    id: &safessh_core::tunnel::TunnelId,
+    reason: safessh_core::tunnel::TunnelCloseReason,
+    duration_secs: u64,
+) -> AuditEvent {
+    let mut e = AuditEvent::new("tunnel_close");
+    e.project = Some(project.to_string());
+    let reason_str = serde_json::to_value(reason)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_else(|| "unknown".into());
+    e.data = json!({
+        "id": id.as_str(),
+        "reason": reason_str,
+        "duration_secs": duration_secs,
+    });
+    e
+}
+
 fn decision_label(d: &PolicyDecision) -> &'static str {
     match d {
         PolicyDecision::Allow { .. } => "allow",
