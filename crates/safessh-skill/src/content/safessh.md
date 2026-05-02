@@ -96,6 +96,45 @@ When you see a `BLOCKED:` block:
    the original command. Do not run `approve` yourself unless the user tells
    you to.
 
+## Reading and writing files
+
+For configuration files, logs, or scripts, prefer `read`/`write` over
+`exec "cat ..."` / `exec "tee ..."` — they are first-class operations
+with stricter policy controls and audit detail.
+
+### Read
+
+```
+safessh <project> [--on <target>] read <remote-path>
+```
+
+- Streams remote bytes through the redactor to stdout (framed).
+- Cap defaults to 5 MB (`output.file_read_cap_bytes`). Exceed → exit 30,
+  output is still valid up to the cap.
+- File missing → exit 1. Permission denied → exit 20.
+- Sensitive paths (`/etc/shadow`, `/root/.ssh/**`, `**/.env*`, ...) are
+  blocked by a binary-embedded preset that **cannot be overridden** by
+  per-project policy.
+
+### Write
+
+```
+echo "content" | safessh <project> [--on <target>] write <remote-path>
+```
+
+- Reads stdin to memory (cap 5 MB, `output.file_write_cap_bytes`),
+  uploads to a sibling tempfile, atomically renames over the target.
+- Bytes are NOT redacted on write — what stdin contains is what lands.
+- Stdin > cap → exit 30, no remote write occurs.
+- Parent directory missing → exit 1.
+
+### Approval flow
+
+If the project's policy doesn't allow the path, the CLI prints
+`BLOCKED:<token>` on stderr and exits 10 — same format as `exec`. The
+human approves via `safessh approve <token>` (or the TUI), and a
+follow-up `read`/`write` succeeds.
+
 ## `--yolo` is discouraged
 
 `safessh` exposes a `--yolo` flag that bypasses policy checks. **Do not use
