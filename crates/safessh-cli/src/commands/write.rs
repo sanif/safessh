@@ -45,8 +45,6 @@ use std::time::Instant;
 /// config setting short-circuits this with [`Error::YoloRefused`] (exit 13).
 ///
 /// Returns `true` when stdin exceeded the cap (caller should exit 30).
-// Wired into `main.rs` in Task 10; allow until then.
-#[allow(dead_code)]
 pub async fn run(args: Vec<String>, yolo: bool) -> Result<bool> {
     let paths = Paths::user().map_err(Error::Io)?;
     let driver =
@@ -55,7 +53,6 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<bool> {
 }
 
 /// Thin shim that reads stdin then delegates to the testable inner function.
-#[allow(dead_code)]
 pub async fn run_with_driver(
     args: Vec<String>,
     yolo: bool,
@@ -227,7 +224,6 @@ async fn read_stdin_bounded(max_bytes: u64) -> Result<Vec<u8>> {
 /// Strip `--yolo`, `--on <target>` (or `--on=<target>`) from the argv slice.
 ///
 /// Returns `(remaining_args, yolo_seen, on_target_value)`.
-#[allow(dead_code)]
 pub(super) fn parse_write_extras(
     args: Vec<String>,
 ) -> (Vec<String>, bool, Option<String>) {

@@ -26,8 +26,37 @@ async fn main() {
 
     match parsed.command {
         cli::TopCmd::External(args) => {
-            if let Err(e) = commands::exec::run(args, yolo).await {
-                errors::report_and_exit(e);
+            match find_verb(&args).map(|s| s.as_str()) {
+                Some("exec") => {
+                    if let Err(e) = commands::exec::run(args, yolo).await {
+                        errors::report_and_exit(e);
+                    }
+                }
+                Some("read") => {
+                    match commands::read::run(args, yolo).await {
+                        Ok(truncated) => {
+                            if truncated {
+                                std::process::exit(30);
+                            }
+                        }
+                        Err(e) => errors::report_and_exit(e),
+                    }
+                }
+                Some("write") => {
+                    match commands::write::run(args, yolo).await {
+                        Ok(truncated) => {
+                            if truncated {
+                                std::process::exit(30);
+                            }
+                        }
+                        Err(e) => errors::report_and_exit(e),
+                    }
+                }
+                _ => {
+                    errors::report_and_exit(safessh_core::error::Error::Usage(
+                        "expected: exec | read | write".into(),
+                    ));
+                }
             }
         }
         cli::TopCmd::Project { cmd } => {
@@ -91,4 +120,27 @@ async fn main() {
             }
         }
     }
+}
+
+/// Scan `args` for the verb (exec | read | write), skipping `--yolo` and
+/// `--on <target>` flags that may appear before the verb in the argv.
+///
+/// `args[0]` is always the project name; the verb is the next positional arg
+/// after stripping any leading flags. Returns `None` if no verb is found.
+fn find_verb(args: &[String]) -> Option<&String> {
+    let mut iter = args.iter().skip(1); // skip the project name
+    while let Some(a) = iter.next() {
+        if a == "--yolo" {
+            continue;
+        }
+        if a == "--on" {
+            iter.next(); // consume the target value
+            continue;
+        }
+        if a.starts_with("--on=") {
+            continue;
+        }
+        return Some(a);
+    }
+    None
 }
