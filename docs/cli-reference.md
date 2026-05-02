@@ -126,11 +126,17 @@ Policy gate: the operation is classified as `network:tunnel`, which is default-d
 | `40` | Storage error. |
 | `50` | Audit-write failure. |
 
-## `safessh project add <name> [flags]`
+## `safessh project add [name] [flags]`
 
-Register a new project.
+Register a new project. The default form is **interactive**:
 
-**Flags:**
+```sh
+safessh project add
+```
+
+Walks you through name validation, target source (ssh-config alias vs inline), alias mode (reference vs snapshot), inline host/user/port/identity-key (fuzzy-pick from `~/.ssh/` or paste a path), and an optional ProxyJump. Prints the resulting TOML for review before saving. Requires a TTY; in non-TTY contexts (CI, agents, piped scripts) the command refuses with exit 2.
+
+For scripted use, pass any of the flags below — the interactive flow is bypassed and a positional `<name>` is required:
 
 | Flag | Description |
 |---|---|
@@ -140,17 +146,17 @@ Register a new project.
 | `--port <port>` | SSH port. Default `22`. |
 | `--import-ssh-config <name>` | Snapshot `host`/`user`/`port`/`identity_file` from the matching `Host <name>` block of `~/.ssh/config` (or `$SSH_CONFIG_PATH`) into a new `Inline` target. Conflicts with `--alias`/`--host`/`--user` (clap exit 2). ProxyJump is not imported — use `--alias` if you need it. |
 
-Specify exactly one of: `--alias`, the `--host`/`--user` pair, or `--import-ssh-config`. The new project starts with `allow = ["read:safe", "file:read"]` and an empty deny / require-approval list.
+The new project starts with `allow = ["read:safe", "file:read"]` and an empty deny / require-approval list (whether created interactively or via flags).
 
-**Examples:**
+**Examples (scripted):**
 
 ```sh
 safessh project add prod --alias my-prod-host
 safessh project add staging --host staging.example.com --user deploy
-safessh project add prod --import-ssh-config my-prod-host
+safessh project add prod-imported --import-ssh-config my-prod-host
 ```
 
-See [docs/projects.md](projects.md#alias-vs-import--which-to-choose) for the alias-vs-import decision matrix.
+See [docs/projects.md](projects.md#adding-projects) for the alias-vs-import decision matrix.
 
 ## `safessh project target add <project> --name <name> [flags]`
 
@@ -193,9 +199,23 @@ Remove the named target. Refuses with exit 1 if `<name>` is the project's `defau
 
 Print the names of all configured projects, one per line.
 
-## `safessh project edit <name>`
+## `safessh project edit [name]`
 
-Open the project's TOML file in `$EDITOR` (falling back to `vi`) for manual edits. The file is loaded once before launching the editor; if the project doesn't exist, exit 1.
+Interactively edit a project. Without a name argument, you're presented with a fuzzy-search picker over your existing projects; with a name, that step is skipped. Inside the loop you can:
+
+- Add a target (alias or inline; reuses the same prompts as `project add`).
+- Remove a target (refuses to remove the project's `default_target`).
+- Change the default target (fuzzy-pick from existing target names).
+- Toggle policy categories (`allow` / `require_approval` / `deny`) via a multi-select over the shipped category list.
+- Save & exit, or discard & exit.
+
+The current TOML is printed before the loop starts. Requires a TTY.
+
+**Raw-TOML editing.** Set `SAFESSH_EDIT_RAW=1` to fall back to the legacy flow that opens the project file in `$EDITOR` (defaults to `vi`); the file is overwritten atomically when the editor exits. Useful for bulk edits where the prompts would be tedious. In raw mode, a positional `<name>` is required and `<name>` must already exist (otherwise exit 1).
+
+```sh
+SAFESSH_EDIT_RAW=1 safessh project edit prod
+```
 
 ## `safessh project remove <name>`
 

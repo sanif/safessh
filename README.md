@@ -2,7 +2,7 @@
 
 A personal CLI proxy for LLM-driven SSH operations. Credentials stay yours; commands get gated.
 
-**Status:** v0.4.0
+**Status:** v0.4.2
 
 `safessh` is a single Rust binary that sits between an LLM agent (Claude Code, AGENTS.md-aware tools) and your servers. The agent gets a fixed CLI surface; you keep the keys, the policy, and the audit trail.
 
@@ -34,14 +34,24 @@ cargo install --path crates/safessh-cli
 ## Quick start
 
 ```sh
-# 1. Add a project that points at one of your existing ~/.ssh/config aliases.
-safessh project add prod --alias my-prod-host
+# 1. Add a project — interactive prompts walk you through name, target source
+#    (ssh-config alias or inline host/user/key), and let you pick a private
+#    key from ~/.ssh/ via fuzzy-search.
+safessh project add
 
 # 2. Install the skill so Claude Code knows the safessh workflow.
 safessh skill install --target claude-code --scope user
 
 # 3. Run a command. Read-only stuff is allowed by default.
 safessh prod exec "ls /var"
+```
+
+Prefer to script it? Pass flags and the interactive flow is bypassed:
+
+```sh
+safessh project add prod --alias my-prod-host
+safessh project add staging --host stg.internal --user deploy --port 2222
+safessh project add prod-imported --import-ssh-config my-prod-host
 ```
 
 Output is framed for agents to parse:
@@ -76,6 +86,7 @@ Run `safessh skill check` to verify what's installed and whether it matches the 
 | Live filesystem watcher (TUI auto-reloads on external edits) | Available in v0.2 |
 | File operations (read / write with path-globs) | Available in v0.3 |
 | Port forwarding | Available in v0.4 |
+| Interactive `project add` / `project edit` (ssh-config import, fuzzy key picker) | Available in v0.4.2 |
 | SQLite audit index | Planned for v0.5 |
 | Multi-agent skill targets (Cursor, Gemini, Codex) | Planned for v0.6 |
 

@@ -5,6 +5,7 @@ pub mod audit;
 pub mod exec;
 pub mod file_common;
 pub mod forward;
+pub mod interactive;
 pub mod policy;
 pub mod project;
 pub mod read;

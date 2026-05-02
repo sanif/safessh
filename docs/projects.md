@@ -32,38 +32,43 @@ require_approval = ["destructive:filesystem"]
 
 ## Adding projects
 
-### From an ssh-config alias
-
-Use this when you've already configured the host in `~/.ssh/config` and want safessh to delegate connection details to ssh at exec time. ProxyJump and other advanced ssh-config features pass through verbatim.
+### Interactive (default — recommended)
 
 ```sh
-safessh project add prod --alias prod-host
+safessh project add
 ```
 
-The resulting target is `Target::SshConfigAlias { ssh_config_alias = "prod-host" }`. ssh resolves `prod-host` from your ssh-config every invocation.
+Bare `project add` enters an interactive flow that walks you through:
 
-### Inline (host + user + port)
+1. **Project name** — validated against existing projects and constrained to `[A-Za-z0-9_-]`.
+2. **Target source** — pick between an ssh-config alias and an inline host/user/key target.
+3. **Alias mode** (if you picked alias) — *reference* the alias at exec time (lets `~/.ssh/config` evolve), or *snapshot* its values into safessh now.
+4. **Inline fields** (if you picked inline) — host, user (defaults to `$USER`), port (defaults to 22).
+5. **Private key** (optional, inline only) — fuzzy-pick a key from `~/.ssh/` or paste a path manually.
+6. **ProxyJump** (optional, inline only) — `user@bastion[:port]`.
+7. **Preview + confirm** — the resulting TOML is printed before it's written. Decline and nothing lands on disk.
 
-Use this when you want safessh to own the connection details — useful for ephemeral environments where ssh-config would clutter, or when the target lives in a CI variable.
+The interactive flow requires a TTY. In non-TTY contexts (CI, agents, piped scripts) the same command refuses with exit 2 — pass flags instead (see below) so the path stays scriptable.
+
+### Scripted (flags-only, bypasses interactive)
+
+If any of `--alias`, `--host`, `--user`, or `--import-ssh-config` is set, the interactive flow is skipped and the legacy positional form applies:
 
 ```sh
+# Reference an ssh-config alias at exec time:
+safessh project add prod --alias prod-host
+
+# Inline:
 safessh project add stage \
   --host stage.example.com \
   --user deploy \
   --port 2222
-```
 
-### Importing from ssh-config (snapshot)
-
-Different from `--alias`: this **snapshots** the host details into the project TOML. `host`, `user`, `port`, `identity_file` are read from the matching `Host` block in `~/.ssh/config` and pinned in the project. Subsequent ssh-config edits won't drift the project.
-
-```sh
+# Snapshot from ssh-config alias (decoupled from later ssh-config edits):
 safessh project add prod --import-ssh-config prod-host
 ```
 
-**ProxyJump is not imported** — `ssh2-config` 0.3 does not expose it. If your alias relies on ProxyJump, use `--alias` instead so ssh handles the chain at exec time.
-
-When `--import-ssh-config` is given, `--alias` / `--host` / `--user` are clap-rejected (exit 2). Unknown alias names exit 1 with `safessh: config: ... no ssh-config alias: <name>`.
+`--import-ssh-config` is mutually exclusive with `--alias` / `--host` / `--user` at the clap level (exit 2). Unknown alias names exit 1 with `safessh: config: ... no ssh-config alias: <name>`. **ProxyJump is not imported** — `ssh2-config` 0.3 does not expose it; use `--alias` instead so ssh handles the chain at exec time.
 
 ### Alias vs import — which to choose
 
@@ -78,11 +83,24 @@ When `--import-ssh-config` is given, `--alias` / `--host` / `--user` are clap-re
 
 ```sh
 safessh project list                     # one project per line
-safessh project edit prod                # opens $EDITOR on prod.toml
+safessh project edit                     # interactive: pick a project, then edit
+safessh project edit prod                # interactive: skip the picker
 safessh project remove prod              # deletes the file (atomic)
 ```
 
-`project edit` honors `$EDITOR` (defaults to `vi`). The file is overwritten atomically when the editor exits.
+The interactive `project edit` loop lets you:
+- Add or remove a target.
+- Change the default target.
+- Toggle policy categories (`allow`, `require_approval`, `deny`) via a multi-select over the shipped category list.
+- Save & exit, or discard & exit.
+
+The TOML preview is printed before the loop starts so you can spot what's currently configured.
+
+If you want raw-TOML editing through `$EDITOR` (defaults to `vi`), set `SAFESSH_EDIT_RAW=1`; the file is overwritten atomically when the editor exits. Use this for bulk edits where the prompts would be tedious.
+
+```sh
+SAFESSH_EDIT_RAW=1 safessh project edit prod
+```
 
 ## Multi-target projects
 
