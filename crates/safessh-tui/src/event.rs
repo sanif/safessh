@@ -44,7 +44,16 @@ impl EventStream {
         });
 
         let key_tx = tx.clone();
+        // Tokio's blocking pool blocks runtime shutdown until the task
+        // returns, so we poll a short interval and check whether the
+        // receiver has dropped on every iteration. Without this check the
+        // thread sits in `crossterm::event::poll(100ms)` forever after the
+        // event loop has broken on Quit, leaving the binary hung until the
+        // user sends another signal (Ctrl-C).
         tokio::task::spawn_blocking(move || loop {
+            if key_tx.is_closed() {
+                break;
+            }
             if crossterm::event::poll(Duration::from_millis(100)).unwrap_or(false) {
                 if let Ok(CtEvent::Key(k)) = crossterm::event::read() {
                     if key_tx.blocking_send(AppEvent::Key(k)).is_err() {

@@ -27,12 +27,27 @@ async fn drain_one(rx: &mut mpsc::Receiver<FsEvent>) -> Option<FsEvent> {
         .flatten()
 }
 
+/// Drain any backlog events the watcher accumulated during its first
+/// debounce window. macOS FSEvents emits backlog events for recently-modified
+/// subdirs (e.g. the `ensure_dirs()` calls in `setup()`); without this drain
+/// the very first test write races with those backlogged events inside the
+/// 200ms debounce window and the channel can deliver them in either order.
+async fn drain_backlog(rx: &mut mpsc::Receiver<FsEvent>) {
+    while tokio::time::timeout(Duration::from_millis(100), rx.recv())
+        .await
+        .ok()
+        .flatten()
+        .is_some()
+    {}
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pending_write_triggers_approvals_event() {
     let (_tmp, paths) = setup();
     let (tx, mut rx) = mpsc::channel(8);
     let _guard = start_watcher(&paths, tx).unwrap();
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    drain_backlog(&mut rx).await;
 
     let pending = paths.approvals_dir().join("pending/test.toml");
     std::fs::write(&pending, "token = \"abc\"\n").unwrap();
@@ -49,7 +64,8 @@ async fn project_write_triggers_projects_event() {
     let (_tmp, paths) = setup();
     let (tx, mut rx) = mpsc::channel(8);
     let _guard = start_watcher(&paths, tx).unwrap();
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    drain_backlog(&mut rx).await;
 
     let f = paths.projects_dir().join("demo.toml");
     std::fs::write(&f, "name = \"demo\"\n").unwrap();
@@ -66,7 +82,8 @@ async fn audit_append_triggers_audit_event() {
     let (_tmp, paths) = setup();
     let (tx, mut rx) = mpsc::channel(8);
     let _guard = start_watcher(&paths, tx).unwrap();
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    drain_backlog(&mut rx).await;
 
     let f = paths.audit_log();
     std::fs::write(&f, "{\"event\":\"x\"}\n").unwrap();
@@ -95,7 +112,8 @@ async fn debouncer_collapses_burst() {
     let (_tmp, paths) = setup();
     let (tx, mut rx) = mpsc::channel(16);
     let _guard = start_watcher(&paths, tx).unwrap();
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    drain_backlog(&mut rx).await;
 
     for i in 0..5 {
         let f = paths

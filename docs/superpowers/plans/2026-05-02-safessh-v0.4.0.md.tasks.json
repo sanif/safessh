@@ -1,6 +1,6 @@
 {
   "planPath": "docs/superpowers/plans/2026-05-02-safessh-v0.4.0.md",
-  "lastUpdated": "2026-05-02T17:00:00Z",
+  "lastUpdated": "2026-05-03T00:30:00Z",
   "tasks": [
     {
       "id": 0,
@@ -164,7 +164,7 @@
     {
       "id": 16,
       "subject": "Task 16: Release rehearsal \u2014 rc.1 \u2192 v0.4.0",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         15
       ],

@@ -5,6 +5,27 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-03
+
+### Fixed
+- `safessh tui` quit (`q` / `Esc` / `Ctrl-C`) restored the terminal
+  but the process kept running until the user sent another signal.
+  Cause: the keyboard event reader runs on tokio's blocking pool —
+  unlike regular tokio tasks, blocking-pool tasks block runtime
+  shutdown until they return. The reader sat in
+  `crossterm::event::poll(100ms)` forever, so the runtime never
+  shut down after the main loop broke. The reader now checks
+  whether its sender has been dropped on every poll iteration, so
+  it returns within 100 ms of the TUI loop exiting.
+- `crates/safessh-tui/tests/watcher.rs` was intermittently failing on
+  macos-14 CI because macOS FSEvents emits backlog events for the
+  directories `ensure_dirs()` had just created, and they landed inside
+  the watcher's first 200 ms debounce window alongside the test's own
+  write — making the first event off the channel non-deterministic.
+  Tests now drain the channel after a 300 ms warmup before asserting,
+  so the channel sees only the test's own write. No runtime behavior
+  changes; this is a CI-only fix.
+
 ## [0.4.0] - 2026-05-02
 
 ### Added
