@@ -45,6 +45,8 @@ crossterm   = "0.28"
 notify      = "6"
 notify-debouncer-mini = "0.4"
 
+rand        = "0.8"
+
 # Testing
 proptest    = "1"
 insta       = { version = "1", features = ["yaml", "redactions"] }

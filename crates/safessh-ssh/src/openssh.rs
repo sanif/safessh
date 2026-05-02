@@ -305,12 +305,70 @@ impl SshDriver for OpenSshDriver {
 
     async fn write_file(
         &self,
-        _target: &Target,
-        _path: &str,
-        _bytes: &[u8],
+        target: &Target,
+        path: &str,
+        bytes: &[u8],
     ) -> Result<FileWriteResult> {
-        Err(Error::Storage(
-            "write_file: unimplemented in OpenSshDriver until Task 6".into(),
-        ))
+        use rand::Rng;
+
+        // Stage bytes to a local tempfile so sftp `put` has a source.
+        let mut local_tmp = tempfile::NamedTempFile::new()
+            .map_err(|e| Error::Storage(format!("local tempfile: {e}")))?;
+        std::io::Write::write_all(local_tmp.as_file_mut(), bytes)
+            .map_err(|e| Error::Storage(format!("local tempfile write: {e}")))?;
+        let local_path = local_tmp.path().to_path_buf();
+
+        // Compute remote temp path: <dir>/.safessh.<8hex>.tmp
+        let (remote_dir, _remote_name) = match path.rsplit_once('/') {
+            Some((d, n)) if !d.is_empty() => (d.to_string(), n.to_string()),
+            Some((_, n)) => ("/".to_string(), n.to_string()),
+            None => {
+                return Err(Error::Storage(format!(
+                    "write_file: path must be absolute: {path}"
+                )))
+            }
+        };
+        let token: String = (0..8)
+            .map(|_| format!("{:x}", rand::thread_rng().gen_range(0..16u32)))
+            .collect();
+        let remote_tmp = if remote_dir == "/" {
+            format!("/.safessh.{token}.tmp")
+        } else {
+            format!("{remote_dir}/.safessh.{token}.tmp")
+        };
+
+        // SAFETY-INVARIANT-13: atomic remote write via temp+rename.
+        let upload_script = format!(
+            "put \"{}\" \"{}\"\nrename \"{}\" \"{}\"\n",
+            local_path.display().to_string().replace('"', "\\\""),
+            remote_tmp.replace('"', "\\\""),
+            remote_tmp.replace('"', "\\\""),
+            path.replace('"', "\\\""),
+        );
+
+        let (_out, err, code) = self.sftp_batch(target, &upload_script, None).await?;
+        if code != 0 {
+            // Best-effort cleanup of the remote temp.
+            let cleanup = format!("rm \"{}\"\n", remote_tmp.replace('"', "\\\""));
+            let _ = self.sftp_batch(target, &cleanup, None).await;
+
+            let s = String::from_utf8_lossy(&err);
+            if s.contains("No such file or directory") && s.contains(&remote_dir) {
+                return Err(Error::Storage(format!(
+                    "no such remote directory: {remote_dir}"
+                )));
+            }
+            if s.contains("Failure") || s.contains("permission denied") {
+                return Err(Error::Storage(format!("sftp write failed: {s}")));
+            }
+            return Err(Error::Storage(format!(
+                "sftp write failed (code {code}): {s}"
+            )));
+        }
+
+        Ok(FileWriteResult {
+            canonical_path: path.to_string(),
+            bytes_written: bytes.len() as u64,
+        })
     }
 }
