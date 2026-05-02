@@ -1,4 +1,4 @@
-//! Rules screen — three-tab view of persistent rules per project.
+//! Rules screen — four-tab view of persistent rules per project.
 //!
 //! All deletes go through the storage crate's `remove` methods, which
 //! hold an exclusive lock + write atomically (SAFETY-INVARIANT-12).
@@ -13,13 +13,14 @@ use ratatui::{
 use safessh_core::error::{Error, Result};
 use safessh_storage::approvals::{AlwaysStore, BlockedStore, PatternRule, TimedRule, TimedStore};
 use safessh_storage::paths::Paths;
-use safessh_storage::project::ProjectStore;
+use safessh_storage::project::{FileRule, ProjectStore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuleTab {
     Timed,
     Always,
     Blocked,
+    File,
 }
 
 impl RuleTab {
@@ -28,6 +29,7 @@ impl RuleTab {
             Self::Timed => "Timed",
             Self::Always => "Always",
             Self::Blocked => "Blocked",
+            Self::File => "File",
         }
     }
 
@@ -36,6 +38,7 @@ impl RuleTab {
             Self::Timed => 0,
             Self::Always => 1,
             Self::Blocked => 2,
+            Self::File => 3,
         }
     }
 }
@@ -48,6 +51,7 @@ pub struct RulesScreen {
     pub timed: Vec<TimedRule>,
     pub always: Vec<PatternRule>,
     pub blocked: Vec<PatternRule>,
+    pub file_rules: Vec<FileRule>,
     pub selected: usize,
 }
 
@@ -63,6 +67,7 @@ impl RulesScreen {
             timed: vec![],
             always: vec![],
             blocked: vec![],
+            file_rules: vec![],
             selected: 0,
         };
         s.reload()?;
@@ -78,6 +83,7 @@ impl RulesScreen {
             timed: vec![],
             always: vec![],
             blocked: vec![],
+            file_rules: vec![],
             selected: 0,
         }
     }
@@ -93,10 +99,15 @@ impl RulesScreen {
             self.blocked = BlockedStore::new(&self.paths)
                 .list(project)
                 .unwrap_or_default();
+            self.file_rules = ProjectStore::new(self.paths.clone())
+                .load(project)
+                .map(|p| p.policy.file_rules)
+                .unwrap_or_default();
         } else {
             self.timed.clear();
             self.always.clear();
             self.blocked.clear();
+            self.file_rules.clear();
         }
         let len = self.current_len();
         if len == 0 {
@@ -113,11 +124,12 @@ impl RulesScreen {
     }
 
     pub fn cycle_tab(&mut self, delta: i32) {
-        let new_idx = ((self.tab.idx() as i32 + delta).rem_euclid(3)) as usize;
+        let new_idx = ((self.tab.idx() as i32 + delta).rem_euclid(4)) as usize;
         let tab = match new_idx {
             0 => RuleTab::Timed,
             1 => RuleTab::Always,
-            _ => RuleTab::Blocked,
+            2 => RuleTab::Blocked,
+            _ => RuleTab::File,
         };
         self.switch_tab(tab);
     }
@@ -164,6 +176,17 @@ impl RulesScreen {
                     BlockedStore::new(&self.paths).remove(&project, &r.rule_id)?;
                 }
             }
+            RuleTab::File => {
+                // SAFETY-INVARIANT-12: mutate project in-memory then persist
+                // atomically via ProjectStore::save, which uses tempfile +
+                // persist() under the hood.
+                if self.selected < self.file_rules.len() {
+                    let store = ProjectStore::new(self.paths.clone());
+                    let mut proj = store.load(&project)?;
+                    proj.policy.file_rules.remove(self.selected);
+                    store.save(&proj)?;
+                }
+            }
         }
         self.reload()
     }
@@ -173,6 +196,7 @@ impl RulesScreen {
             RuleTab::Timed => self.timed.len(),
             RuleTab::Always => self.always.len(),
             RuleTab::Blocked => self.blocked.len(),
+            RuleTab::File => self.file_rules.len(),
         }
     }
 
@@ -204,7 +228,7 @@ impl RulesScreen {
         );
 
         // Row 2: tabs.
-        let titles: Vec<Line> = [RuleTab::Timed, RuleTab::Always, RuleTab::Blocked]
+        let titles: Vec<Line> = [RuleTab::Timed, RuleTab::Always, RuleTab::Blocked, RuleTab::File]
             .iter()
             .map(|t| Line::raw(t.label()))
             .collect();
@@ -274,6 +298,22 @@ impl RulesScreen {
                 vec!["RULE", "BIN", "FLAGS", "CATEGORIES", ""],
                 format!("No blocked rules for {project}."),
             ),
+            RuleTab::File => (
+                self.file_rules
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, r)| {
+                        Row::new(vec![
+                            idx.to_string(),
+                            r.category.clone(),
+                            r.paths.join(" "),
+                            format!("{:?}", r.decision),
+                        ])
+                    })
+                    .collect(),
+                vec!["IDX", "CATEGORY", "PATHS", "DECISION"],
+                format!("No file rules for {project}."),
+            ),
         };
 
         if rows.is_empty() {
@@ -284,13 +324,22 @@ impl RulesScreen {
             return;
         }
 
-        let widths = [
-            Constraint::Length(20),
-            Constraint::Length(10),
-            Constraint::Length(10),
-            Constraint::Min(20),
-            Constraint::Length(14),
-        ];
+        let widths: Vec<Constraint> = if self.tab == RuleTab::File {
+            vec![
+                Constraint::Length(4),
+                Constraint::Length(20),
+                Constraint::Min(20),
+                Constraint::Length(10),
+            ]
+        } else {
+            vec![
+                Constraint::Length(20),
+                Constraint::Length(10),
+                Constraint::Length(10),
+                Constraint::Min(20),
+                Constraint::Length(14),
+            ]
+        };
         let mut state = TableState::default();
         state.select(Some(self.selected));
         let table = Table::new(rows, widths)

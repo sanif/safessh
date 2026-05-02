@@ -92,7 +92,31 @@ fn cycle_tab_wraps() {
     s.cycle_tab(1);
     assert_eq!(s.tab, RuleTab::Blocked);
     s.cycle_tab(1);
+    assert_eq!(s.tab, RuleTab::File);
+    s.cycle_tab(1);
     assert_eq!(s.tab, RuleTab::Timed);
     s.cycle_tab(-1);
-    assert_eq!(s.tab, RuleTab::Blocked);
+    assert_eq!(s.tab, RuleTab::File);
+}
+
+#[test]
+fn delete_file_rule_removes_from_project() {
+    use safessh_storage::project::{FileDecision, FileRule};
+    let (_tmp, p) = setup();
+    // Save the project with a file rule present.
+    let store = ProjectStore::new(p.clone());
+    let mut proj = store.load("p").unwrap();
+    proj.policy.file_rules = vec![FileRule {
+        category: "read".into(),
+        paths: vec!["/etc/passwd".into()],
+        decision: FileDecision::Deny,
+    }];
+    store.save(&proj).unwrap();
+
+    let mut s = RulesScreen::load(&p).unwrap();
+    s.switch_tab(RuleTab::File);
+    assert_eq!(s.file_rules.len(), 1);
+    s.apply_delete().unwrap();
+    let after = ProjectStore::new(p.clone()).load("p").unwrap();
+    assert_eq!(after.policy.file_rules.len(), 0);
 }
