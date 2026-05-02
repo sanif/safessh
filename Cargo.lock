@@ -2428,6 +2428,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
+name = "portpicker"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be97d76faf1bfab666e1375477b23fde79eccf0276e9b63b92a39d676a889ba9"
+dependencies = [
+ "rand 0.8.6",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2996,9 +3005,12 @@ name = "safessh-ssh"
 version = "0.4.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "futures",
  "nix",
+ "portpicker",
  "rand 0.8.6",
+ "safessh-cli",
  "safessh-core",
  "safessh-storage",
  "serde",
@@ -3006,6 +3018,7 @@ dependencies = [
  "testcontainers",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
