@@ -63,6 +63,35 @@ fn one_pending_request() {
             },
             raw: "rm -rf /tmp/x".into(),
             created_at: Utc::now(),
+            path: None,
+        })
+        .unwrap();
+    let s = ApprovalsScreen::load(&p).unwrap();
+    insta::assert_snapshot!(render(&s));
+}
+
+#[test]
+fn one_file_read_pending_request() {
+    let p = paths();
+    // File-op approval: category is `file:read`, path field is populated.
+    // Row should render as: <token> <project> file:read <path>
+    PendingStore::new(&p)
+        .add(&PendingRequest {
+            token: "FIL001".into(),
+            project: "prod".into(),
+            categories: vec!["file:read".into()],
+            parsed: ParsedCommand {
+                binary: "file:read".into(),
+                flags: vec![],
+                args: vec!["/etc/hosts".into()],
+                redirects: vec![],
+                pipes: vec![],
+                env_mutations: vec![],
+                raw: "file:read /etc/hosts".into(),
+            },
+            raw: "file:read /etc/hosts".into(),
+            created_at: Utc::now(),
+            path: Some("/etc/hosts".into()),
         })
         .unwrap();
     let s = ApprovalsScreen::load(&p).unwrap();

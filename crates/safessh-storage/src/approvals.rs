@@ -24,6 +24,11 @@ pub struct PendingRequest {
     pub parsed: ParsedCommand,
     pub raw: String,
     pub created_at: DateTime<Utc>,
+    /// Remote path for file-op approvals (`file:read` / `file:write`).
+    /// `None` for exec approvals. Existing pending files without this field
+    /// parse fine via `#[serde(default)]` (backward compat).
+    #[serde(default)]
+    pub path: Option<String>,
 }
 
 /// A pattern-based rule shared by `always` and `blocked` stores.
@@ -267,5 +272,60 @@ impl BlockedStore {
             .filter(|r| r.rule_id != rule_id)
             .collect();
         save_locked(&path, &RuleList { rules: kept })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Existing pending files written without the `path` field must still
+    /// deserialize successfully with `path = None` (backward compat).
+    #[test]
+    fn pending_request_without_path_parses_as_none() {
+        let toml_without_path = r#"
+token = "ABC123"
+project = "prod"
+categories = ["destructive:filesystem"]
+raw = "rm -rf /tmp/x"
+created_at = "2024-01-01T00:00:00Z"
+
+[parsed]
+binary = "rm"
+flags = ["-rf"]
+args = ["/tmp/x"]
+redirects = []
+pipes = []
+env_mutations = []
+raw = "rm -rf /tmp/x"
+"#;
+        let req: PendingRequest = toml::from_str(toml_without_path).expect("should parse");
+        assert_eq!(req.path, None, "path should default to None");
+        assert_eq!(req.token, "ABC123");
+    }
+
+    /// Pending files that include `path` parse correctly.
+    #[test]
+    fn pending_request_with_path_parses_correctly() {
+        let toml_with_path = r#"
+token = "XYZ789"
+project = "prod"
+categories = ["file:read"]
+raw = "read /etc/hosts"
+created_at = "2024-01-01T00:00:00Z"
+path = "/etc/hosts"
+
+[parsed]
+binary = ""
+flags = []
+args = []
+redirects = []
+pipes = []
+env_mutations = []
+raw = "read /etc/hosts"
+"#;
+        let req: PendingRequest = toml::from_str(toml_with_path).expect("should parse");
+        assert_eq!(req.path, Some("/etc/hosts".to_string()));
+        assert_eq!(req.categories, vec!["file:read"]);
     }
 }

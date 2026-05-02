@@ -112,6 +112,7 @@ fn pending_add_take_roundtrip() {
         },
         raw: "rm -rf /tmp/foo".into(),
         created_at: Utc::now(),
+        path: None,
     };
 
     store.add(&request).unwrap();
@@ -150,6 +151,7 @@ fn pending_cleanup_expired_removes_old() {
             parsed: parsed.clone(),
             raw: "ls".into(),
             created_at: Utc::now() - Duration::hours(48),
+            path: None,
         })
         .unwrap();
     store
@@ -160,6 +162,7 @@ fn pending_cleanup_expired_removes_old() {
             parsed,
             raw: "ls".into(),
             created_at: Utc::now(),
+            path: None,
         })
         .unwrap();
 

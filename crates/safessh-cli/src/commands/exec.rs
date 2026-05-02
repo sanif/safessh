@@ -276,6 +276,7 @@ fn decide_and_record(
                     parsed: parsed.clone(),
                     raw: raw_command.to_string(),
                     created_at: chrono::Utc::now(),
+                    path: None,
                 };
                 pending.add(&req)?;
                 return Err(Error::ApprovalRequired {

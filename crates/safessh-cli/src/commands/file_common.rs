@@ -7,9 +7,9 @@
 use safessh_audit::event;
 use safessh_audit::jsonl::AuditWriter;
 use safessh_core::error::Result;
-use safessh_core::types::PolicyDecision;
+use safessh_core::types::{ParsedCommand, PolicyDecision};
 use safessh_policy::decision::{decide, DecisionInput, FileOp};
-use safessh_storage::approvals::{AlwaysStore, BlockedStore, TimedStore};
+use safessh_storage::approvals::{AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore};
 use safessh_storage::paths::Paths;
 use safessh_storage::policies::preset_file_rules;
 use safessh_storage::project::Project;
@@ -40,6 +40,14 @@ impl FileKind {
             FileKind::Write => "file_write_complete",
         }
     }
+
+    /// The `file:read` / `file:write` category string for this op kind.
+    fn category(&self) -> &'static str {
+        match self {
+            FileKind::Read => "file:read",
+            FileKind::Write => "file:write",
+        }
+    }
 }
 
 /// Run the policy engine for a file operation and write the attempt audit event.
@@ -47,6 +55,10 @@ impl FileKind {
 /// Loads always/timed/blocked rules for the project, builds a `DecisionInput`
 /// with the appropriate `FileOp` and preset_file_rules, calls `decide()`, and
 /// writes the attempt audit event **before** returning.
+///
+/// When the decision is `RequireApproval` and no TTY is attached (headless
+/// path), a [`PendingRequest`] is persisted with the `path` field set so
+/// the TUI Approvals screen can render and act on the file-op approval.
 ///
 /// # Safety invariants
 ///
@@ -93,6 +105,37 @@ pub fn decide_file_op(
     // SAFETY-INVARIANT-4: audit-write before any user-visible output.
     let evt = event::file_attempt(kind.attempt_event_type(), project_name, path, &decision);
     writer.append(&evt)?;
+
+    // Persist a pending file for RequireApproval on the headless path so the
+    // TUI Approvals screen can show the file-op row and act on it.
+    if let PolicyDecision::RequireApproval {
+        token, categories, ..
+    } = &decision
+    {
+        if !atty::is(atty::Stream::Stdin) {
+            let req = PendingRequest {
+                token: token.as_str().to_string(),
+                project: project_name.to_string(),
+                categories: categories.clone(),
+                // File-op approvals don't parse a shell command; use the
+                // category as a synthetic binary-equivalent so the TUI can
+                // still display something meaningful in the parsed slot.
+                parsed: ParsedCommand {
+                    binary: kind.category().to_string(),
+                    flags: vec![],
+                    args: vec![path.to_string()],
+                    redirects: vec![],
+                    pipes: vec![],
+                    env_mutations: vec![],
+                    raw: format!("{} {}", kind.category(), path),
+                },
+                raw: format!("{} {}", kind.category(), path),
+                created_at: chrono::Utc::now(),
+                path: Some(path.to_string()),
+            };
+            PendingStore::new(paths).add(&req)?;
+        }
+    }
 
     Ok(decision)
 }
