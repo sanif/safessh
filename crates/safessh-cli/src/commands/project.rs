@@ -70,6 +70,7 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
                     allow: vec!["read:safe".into(), "file:read".into()],
                     require_approval: vec![],
                     deny: vec![],
+                    file_rules: vec![],
                 },
                 approvals: Approvals::default(),
                 output: OutputCaps::default(),
