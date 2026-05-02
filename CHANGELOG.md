@@ -5,6 +5,43 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - YYYY-MM-DD
+
+### Added
+- `safessh <project> [--on <target>] read <path>` — fetch a remote file over
+  sftp, framed as `<stdout>…</stdout>` identical to `exec` output. Capped by
+  the project's `output_cap_bytes` (default 1 MiB).
+- `safessh <project> [--on <target>] write <path>` — upload stdin to a remote
+  path via sftp. Writes atomically (temp file + rename on the remote side);
+  SAFETY-INVARIANT-13 preserves this — a partial upload is never visible at
+  the destination path.
+- `[[policy.file_rules]]` TOML array in project files: path-glob–based allow /
+  require-approval / deny rules for file ops. Schema is additive — v0.2 project
+  files with no `file_rules` key continue to work unchanged (backward-compat).
+- Preset deny-list for sensitive remote paths (`/etc/shadow`, `~/.ssh/id_*`,
+  `~/.aws/credentials`, and others). The preset is evaluated before any
+  project-level `file_rules` so a project cannot accidentally allow a path
+  that the preset blocks (SAFETY-INVARIANT-14).
+- `SshDriver` trait extended with `read_file(&self, path) -> Result<Bytes>` and
+  `write_file(&self, path, data) -> Result<()>`. The mock driver (`MockSshDriver`)
+  implements both, keeping unit tests free of real SSH.
+- Two new audit event-type pairs:
+  - `file_read` (attempt) / `file_read_complete` (outcome with byte count).
+  - `file_write` (attempt) / `file_write_complete` (outcome with byte count).
+  Audit-write still happens before user-visible output (SAFETY-INVARIANT-4).
+- TUI Rules screen: new **File** tab alongside Timed / Always / Blocked,
+  listing `[[policy.file_rules]]` entries from the active project.
+- TUI Approvals screen: file-rule action variant — approve / deny a pending
+  file-op request from the same 5-action UI as `exec` approvals.
+- TUI Audit screen: file event one-liners (`file_read` / `file_write` events
+  display remote path, byte count, and outcome alongside existing exec events).
+- New docs: [`docs/policy.md`](docs/policy.md) (categories, AST matching,
+  `[[policy.file_rules]]` schema) and [`docs/files.md`](docs/files.md) (file
+  read / write subcommands, path-glob rules, safety invariants 13–14).
+- Skill markdown (`crates/safessh-skill/src/content/safessh.md`) updated: added
+  `read` / `write` usage, exit-code entries for file ops, and guidance on
+  `[[policy.file_rules]]` configuration.
+
 ## [0.2.0] - 2026-05-02
 
 ### Added
