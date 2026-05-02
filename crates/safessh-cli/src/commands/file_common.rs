@@ -16,6 +16,8 @@ use safessh_storage::project::Project;
 use sha2::{Digest, Sha256};
 
 /// What kind of file op the caller is performing — drives audit event-type.
+// `Write` is used by `write.rs` (Task 9); `Read` by `read.rs` (Task 8).
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum FileKind {
     Read,
@@ -30,6 +32,8 @@ impl FileKind {
         }
     }
 
+    // Used by `write.rs` (Task 9).
+    #[allow(dead_code)]
     pub fn complete_event_type(&self) -> &'static str {
         match self {
             FileKind::Read => "file_read_complete",
@@ -49,6 +53,9 @@ impl FileKind {
 /// * **SAFETY-INVARIANT-4:** the attempt audit event is written here before
 ///   returning to the caller. No user-visible output (SSH I/O, framing) may
 ///   occur before this function is called and its event appended.
+// Called by `read.rs` and `write.rs` (Task 9); dead-code lint fires on the
+// binary target until Task 10 wires the dispatch.
+#[allow(dead_code)]
 pub fn decide_file_op(
     paths: &Paths,
     project: &Project,
@@ -91,6 +98,8 @@ pub fn decide_file_op(
 }
 
 /// Compute the SHA-256 hex digest of `bytes`.
+// Used by `read.rs` and `write.rs` (Task 9).
+#[allow(dead_code)]
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
