@@ -2,7 +2,7 @@
 
 A personal CLI proxy for LLM-driven SSH operations. Credentials stay yours; commands get gated.
 
-**Status:** v0.4.2
+**Status:** v0.4.3
 
 `safessh` is a single Rust binary that sits between an LLM agent (Claude Code, AGENTS.md-aware tools) and your servers. The agent gets a fixed CLI surface; you keep the keys, the policy, and the audit trail.
 

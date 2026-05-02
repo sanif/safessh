@@ -26,19 +26,19 @@ pub fn add(store: &ProjectStore) -> Result<()> {
     let existing = store.list().unwrap_or_default();
 
     let name: String = Input::with_theme(&theme)
-        .with_prompt("Project name")
+        .with_prompt("What's the project name?")
         .validate_with(move |s: &String| -> std::result::Result<(), &str> {
             if s.trim().is_empty() {
-                return Err("name cannot be empty");
+                return Err("looks empty — try a name");
             }
             if !s
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
             {
-                return Err("only alphanumerics, '-' and '_' allowed");
+                return Err("use letters, digits, '-' or '_'");
             }
             if existing.iter().any(|n| n == s) {
-                return Err("a project with that name already exists");
+                return Err("you already have a project with that name");
             }
             Ok(())
         })
@@ -46,11 +46,11 @@ pub fn add(store: &ProjectStore) -> Result<()> {
         .map_err(io_to_err)?;
 
     let kind_labels = [
-        "Use an ssh-config alias from ~/.ssh/config",
-        "Define an inline target (host/user/port/key)",
+        "Use an existing ~/.ssh/config alias",
+        "Set host / user / port myself",
     ];
     let kind = Select::with_theme(&theme)
-        .with_prompt("How do you want to define the target?")
+        .with_prompt("How would you like to set up the target?")
         .items(&kind_labels)
         .default(0)
         .interact()
@@ -75,7 +75,7 @@ pub fn add(store: &ProjectStore) -> Result<()> {
         output: OutputCaps::default(),
     };
 
-    println!("\nProject preview:");
+    println!("\nHere's what we'll save:");
     println!(
         "{}",
         toml::to_string_pretty(&project)
@@ -83,17 +83,17 @@ pub fn add(store: &ProjectStore) -> Result<()> {
     );
 
     let confirm = Confirm::with_theme(&theme)
-        .with_prompt("Save?")
+        .with_prompt("Save this project?")
         .default(true)
         .interact()
         .map_err(io_to_err)?;
     if !confirm {
-        println!("Cancelled. Nothing written.");
+        println!("Cancelled — nothing saved.");
         return Ok(());
     }
 
     store.save(&project)?;
-    println!("Created project: {name}");
+    println!("Created project '{name}'.");
     Ok(())
 }
 
@@ -106,7 +106,7 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
     };
     let mut project = store.load(&name)?;
 
-    println!("\nCurrent state of '{}':\n", project.name);
+    println!("\nHere's what '{}' looks like right now:\n", project.name);
     println!(
         "{}",
         toml::to_string_pretty(&project).unwrap_or_else(|_| String::new())
@@ -116,13 +116,13 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
         let actions = [
             "Add a target",
             "Remove a target",
-            "Change default target",
+            "Change the default target",
             "Edit policy categories",
             "Save and exit",
-            "Discard changes and exit",
+            "Discard and exit",
         ];
         let choice = Select::with_theme(&theme)
-            .with_prompt("Action")
+            .with_prompt("What would you like to do?")
             .items(&actions)
             .default(0)
             .interact()
@@ -138,7 +138,7 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
                 return Ok(());
             }
             _ => {
-                println!("Discarded.");
+                println!("Discarded — no changes saved.");
                 return Ok(());
             }
         }
@@ -149,11 +149,11 @@ fn pick_existing_project(store: &ProjectStore, theme: &ColorfulTheme) -> Result<
     let names = store.list().unwrap_or_default();
     if names.is_empty() {
         return Err(Error::Usage(
-            "no projects exist yet — run `safessh project add` first".into(),
+            "you don't have any projects yet — run `safessh project add` to create one".into(),
         ));
     }
     let idx = FuzzySelect::with_theme(theme)
-        .with_prompt("Pick a project to edit")
+        .with_prompt("Which project would you like to edit?")
         .items(&names)
         .default(0)
         .interact()
@@ -169,7 +169,7 @@ fn prompt_ssh_config_target(
     let snap = SshConfigSnapshot::load(store.paths_ref())?;
     if snap.aliases.is_empty() {
         return Err(Error::Config(
-            "no Host blocks found in ~/.ssh/config".into(),
+            "couldn't find any Host blocks in ~/.ssh/config".into(),
         ));
     }
     let alias_labels: Vec<String> = snap
@@ -188,18 +188,18 @@ fn prompt_ssh_config_target(
         .collect();
 
     let mode_labels = [
-        "Reference the alias at exec time (lets ~/.ssh/config evolve)",
-        "Snapshot the alias values into safessh now (decoupled from ssh-config)",
+        "Live link — re-reads ~/.ssh/config on every exec",
+        "Snapshot — copies host/user/port now, ignores later edits",
     ];
     let mode = Select::with_theme(theme)
-        .with_prompt("How should safessh use the alias?")
+        .with_prompt("How should safessh use this alias?")
         .items(&mode_labels)
         .default(0)
         .interact()
         .map_err(io_to_err)?;
 
     let alias_idx = FuzzySelect::with_theme(theme)
-        .with_prompt("Pick an ssh-config alias (type to filter)")
+        .with_prompt("Which alias? (type to filter)")
         .items(&alias_labels)
         .default(0)
         .interact()
@@ -232,10 +232,10 @@ fn prompt_ssh_config_target(
 
 fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Target> {
     let host: String = Input::with_theme(theme)
-        .with_prompt("Host (e.g. db.internal)")
+        .with_prompt("Hostname (e.g. db.internal)")
         .validate_with(|s: &String| -> std::result::Result<(), &str> {
             if s.trim().is_empty() {
-                Err("host cannot be empty")
+                Err("looks empty — try a hostname")
             } else {
                 Ok(())
             }
@@ -244,7 +244,7 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
         .map_err(io_to_err)?;
 
     let user_default = std::env::var("USER").unwrap_or_default();
-    let user_prompt = Input::with_theme(theme).with_prompt("User");
+    let user_prompt = Input::with_theme(theme).with_prompt("Username on the remote");
     let user: String = if user_default.is_empty() {
         user_prompt.interact_text().map_err(io_to_err)?
     } else {
@@ -255,13 +255,13 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
     };
 
     let port: u16 = Input::with_theme(theme)
-        .with_prompt("Port")
+        .with_prompt("SSH port")
         .default(22u16)
         .interact_text()
         .map_err(io_to_err)?;
 
     let identity_file = if Confirm::with_theme(theme)
-        .with_prompt("Specify a private key file?")
+        .with_prompt("Use a private key file?")
         .default(false)
         .interact()
         .map_err(io_to_err)?
@@ -272,13 +272,13 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
     };
 
     let proxy_jump = if Confirm::with_theme(theme)
-        .with_prompt("Use a ProxyJump (bastion)?")
+        .with_prompt("Connect through a bastion (ProxyJump)?")
         .default(false)
         .interact()
         .map_err(io_to_err)?
     {
         let s: String = Input::with_theme(theme)
-            .with_prompt("ProxyJump (e.g. user@bastion[:port])")
+            .with_prompt("Bastion (e.g. user@bastion or user@bastion:2222)")
             .interact_text()
             .map_err(io_to_err)?;
         Some(s)
@@ -325,10 +325,10 @@ fn prompt_ssh_key_path(theme: &ColorfulTheme) -> Result<PathBuf> {
     candidates.sort();
 
     let mut items: Vec<String> = candidates.iter().map(|p| display_path(p)).collect();
-    items.push("Type a path manually...".to_string());
+    items.push("I'll paste a path instead...".to_string());
 
     let idx = FuzzySelect::with_theme(theme)
-        .with_prompt("Private key (type to filter; pick last item to enter a path)")
+        .with_prompt("Pick a key (type to filter, or pick the last entry to paste a path)")
         .items(&items)
         .default(0)
         .interact()
@@ -336,14 +336,14 @@ fn prompt_ssh_key_path(theme: &ColorfulTheme) -> Result<PathBuf> {
 
     if idx == items.len() - 1 {
         let s: String = Input::with_theme(theme)
-            .with_prompt("Path to private key")
+            .with_prompt("Path to your key")
             .validate_with(|s: &String| -> std::result::Result<(), &str> {
                 let expanded = expand_tilde(s);
                 if !expanded.exists() {
-                    return Err("file does not exist (or you don't have permission to stat it)");
+                    return Err("can't find that file (or it's not readable)");
                 }
                 if !expanded.is_file() {
-                    return Err("not a regular file");
+                    return Err("that's not a regular file");
                 }
                 Ok(())
             })
@@ -366,13 +366,13 @@ fn add_target_to(
         .map(|t| t.name().to_string())
         .collect();
     let target_name: String = Input::with_theme(theme)
-        .with_prompt("Target name (unique within project)")
+        .with_prompt("Name for this target?")
         .validate_with(move |s: &String| -> std::result::Result<(), &str> {
             if s.trim().is_empty() {
-                return Err("name cannot be empty");
+                return Err("looks empty — try a name");
             }
             if existing.iter().any(|n| n == s) {
-                return Err("a target with that name already exists");
+                return Err("you already have a target with that name in this project");
             }
             Ok(())
         })
@@ -380,8 +380,11 @@ fn add_target_to(
         .map_err(io_to_err)?;
 
     let kind = Select::with_theme(theme)
-        .with_prompt("Define how?")
-        .items(&["Use an ssh-config alias", "Define an inline target"])
+        .with_prompt("How would you like to set up this target?")
+        .items(&[
+            "Use an existing ~/.ssh/config alias",
+            "Set host / user / port myself",
+        ])
         .default(0)
         .interact()
         .map_err(io_to_err)?;
@@ -390,17 +393,22 @@ fn add_target_to(
         let snap_paths = safessh_storage::paths::Paths::user().map_err(Error::Io)?;
         let snap = SshConfigSnapshot::load(&snap_paths)?;
         if snap.aliases.is_empty() {
-            return Err(Error::Config("no Host blocks in ~/.ssh/config".into()));
+            return Err(Error::Config(
+                "couldn't find any Host blocks in ~/.ssh/config".into(),
+            ));
         }
         let labels: Vec<String> = snap.aliases.iter().map(|a| a.alias.clone()).collect();
         let mode = Select::with_theme(theme)
-            .with_prompt("Reference or snapshot?")
-            .items(&["Reference at exec time", "Snapshot values into safessh"])
+            .with_prompt("How should safessh use this alias?")
+            .items(&[
+                "Live link — re-reads ~/.ssh/config on every exec",
+                "Snapshot — copies host/user/port now, ignores later edits",
+            ])
             .default(0)
             .interact()
             .map_err(io_to_err)?;
         let idx = FuzzySelect::with_theme(theme)
-            .with_prompt("Pick alias")
+            .with_prompt("Which alias? (type to filter)")
             .items(&labels)
             .default(0)
             .interact()
@@ -440,7 +448,7 @@ fn add_target_to(
 fn remove_target_from(project: &mut Project, theme: &ColorfulTheme) -> Result<()> {
     if project.targets.len() <= 1 {
         return Err(Error::Config(
-            "project has only one target — add another first or use `project remove`".into(),
+            "this project only has one target — add another first, or use `safessh project remove` to delete the project entirely".into(),
         ));
     }
     let names: Vec<String> = project
@@ -449,14 +457,14 @@ fn remove_target_from(project: &mut Project, theme: &ColorfulTheme) -> Result<()
         .map(|t| t.name().to_string())
         .collect();
     let idx = FuzzySelect::with_theme(theme)
-        .with_prompt("Remove which target?")
+        .with_prompt("Which target should I remove?")
         .items(&names)
         .default(0)
         .interact()
         .map_err(io_to_err)?;
     if names[idx] == project.default_target {
         return Err(Error::Config(
-            "cannot remove the default target — change the default first".into(),
+            "that's the default target — change the default first, then remove this one".into(),
         ));
     }
     project.targets.remove(idx);
@@ -475,7 +483,7 @@ fn change_default_target(project: &mut Project, theme: &ColorfulTheme) -> Result
         .position(|n| n == &project.default_target)
         .unwrap_or(0);
     let idx = FuzzySelect::with_theme(theme)
-        .with_prompt("New default target")
+        .with_prompt("Which target should be the new default?")
         .items(&names)
         .default(cur)
         .interact()
@@ -504,9 +512,13 @@ fn edit_policy(project: &mut Project, theme: &ColorfulTheme) -> Result<()> {
         "exec:opaque",
     ];
 
-    let bucket_labels = ["allow", "require_approval", "deny"];
+    let bucket_labels = [
+        "allow — run without prompting",
+        "require_approval — prompt before running",
+        "deny — refuse outright",
+    ];
     let bucket = Select::with_theme(theme)
-        .with_prompt("Which list to edit?")
+        .with_prompt("Which list would you like to edit?")
         .items(&bucket_labels)
         .default(0)
         .interact()
@@ -521,7 +533,7 @@ fn edit_policy(project: &mut Project, theme: &ColorfulTheme) -> Result<()> {
         .map(|c| target.iter().any(|t| t == c))
         .collect();
     let chosen = MultiSelect::with_theme(theme)
-        .with_prompt("Toggle categories (Space to toggle, Enter to confirm)")
+        .with_prompt("Pick categories — Space to toggle, Enter to confirm")
         .items(CATEGORIES)
         .defaults(&defaults)
         .interact()
