@@ -12,14 +12,14 @@
     {
       "id": 1,
       "subject": "Task 1: FileRule types in safessh-storage",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [0],
       "description": "**Goal:** Add FileRule + FileDecision; extend Policy with `#[serde(default)] file_rules`. v0.2 TOML round-trips unchanged.\n\n**Files:** crates/safessh-storage/src/project.rs, crates/safessh-storage/tests/file_rules.rs\n\n**Verify:** `cargo test --package safessh-storage --test file_rules`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/project.rs\", \"crates/safessh-storage/tests/file_rules.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage --test file_rules\", \"acceptanceCriteria\": [\"v0.2 backward compat\", \"all decisions parse\", \"bad decision error\", \"round-trip\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Embedded preset deny-list",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [1],
       "description": "**Goal:** include_str!-embedded presets.toml + preset_file_rules() accessor.\n\n**Files:** crates/safessh-storage/src/policies/mod.rs, crates/safessh-storage/src/policies/presets.toml, crates/safessh-storage/src/lib.rs, crates/safessh-storage/tests/presets.rs\n\n**Verify:** `cargo test --package safessh-storage --test presets`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/policies/mod.rs\", \"crates/safessh-storage/src/policies/presets.toml\", \"crates/safessh-storage/src/lib.rs\", \"crates/safessh-storage/tests/presets.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage --test presets\", \"acceptanceCriteria\": [\"preset_file_rules() returns parsed list\", \"required sensitive paths covered\", \"every entry is deny\"]}\n```"
     },
