@@ -1,6 +1,6 @@
 {
   "planPath": "docs/superpowers/plans/2026-05-02-safessh-v0.3.0.md",
-  "lastUpdated": "2026-05-02T12:00:00Z",
+  "lastUpdated": "2026-05-02T18:00:00Z",
   "tasks": [
     {
       "id": 0,
@@ -13,134 +13,189 @@
       "id": 1,
       "subject": "Task 1: FileRule types in safessh-storage",
       "status": "completed",
-      "blockedBy": [0],
+      "blockedBy": [
+        0
+      ],
       "description": "**Goal:** Add FileRule + FileDecision; extend Policy with `#[serde(default)] file_rules`. v0.2 TOML round-trips unchanged.\n\n**Files:** crates/safessh-storage/src/project.rs, crates/safessh-storage/tests/file_rules.rs\n\n**Verify:** `cargo test --package safessh-storage --test file_rules`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/project.rs\", \"crates/safessh-storage/tests/file_rules.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage --test file_rules\", \"acceptanceCriteria\": [\"v0.2 backward compat\", \"all decisions parse\", \"bad decision error\", \"round-trip\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Embedded preset deny-list",
       "status": "completed",
-      "blockedBy": [1],
+      "blockedBy": [
+        1
+      ],
       "description": "**Goal:** include_str!-embedded presets.toml + preset_file_rules() accessor.\n\n**Files:** crates/safessh-storage/src/policies/mod.rs, crates/safessh-storage/src/policies/presets.toml, crates/safessh-storage/src/lib.rs, crates/safessh-storage/tests/presets.rs\n\n**Verify:** `cargo test --package safessh-storage --test presets`\n\n```json:metadata\n{\"files\": [\"crates/safessh-storage/src/policies/mod.rs\", \"crates/safessh-storage/src/policies/presets.toml\", \"crates/safessh-storage/src/lib.rs\", \"crates/safessh-storage/tests/presets.rs\"], \"verifyCommand\": \"cargo test --package safessh-storage --test presets\", \"acceptanceCriteria\": [\"preset_file_rules() returns parsed list\", \"required sensitive paths covered\", \"every entry is deny\"]}\n```"
     },
     {
       "id": 3,
-      "subject": "Task 3: Policy engine — FileOp, match_file_rules, preset precedence",
-      "status": "pending",
-      "blockedBy": [1, 2],
+      "subject": "Task 3: Policy engine \u2014 FileOp, match_file_rules, preset precedence",
+      "status": "completed",
+      "blockedBy": [
+        1,
+        2
+      ],
       "description": "**Goal:** Extend decide() with FileOp + match_file_rules. SAFETY-INVARIANT-14 (preset > project). v0.2 tests still pass.\n\n**Files:** crates/safessh-policy/Cargo.toml (+globset), crates/safessh-policy/src/decision.rs, crates/safessh-policy/src/lib.rs, crates/safessh-policy/tests/file_decision.rs\n\n**Verify:** `cargo test --package safessh-policy`\n\n```json:metadata\n{\"files\": [\"crates/safessh-policy/Cargo.toml\", \"crates/safessh-policy/src/decision.rs\", \"crates/safessh-policy/src/lib.rs\", \"crates/safessh-policy/tests/file_decision.rs\"], \"verifyCommand\": \"cargo test --package safessh-policy\", \"acceptanceCriteria\": [\"FileOp added\", \"preset > project precedence\", \"SAFETY-INVARIANT-14 marker\", \"v0.2 tests pass\", \"** vs * globs\"]}\n```"
     },
     {
       "id": 4,
       "subject": "Task 4: SshDriver trait extension + mock impl",
-      "status": "pending",
-      "blockedBy": [0],
+      "status": "completed",
+      "blockedBy": [
+        0
+      ],
       "description": "**Goal:** Trait read_file/write_file + result types. Mock with in-memory map; OpenSshDriver gets stubs (real impls in 5/6).\n\n**Files:** crates/safessh-ssh/src/driver.rs, crates/safessh-ssh/src/mock.rs, crates/safessh-ssh/src/openssh.rs (stubs), crates/safessh-ssh/tests/mock_files.rs\n\n**Verify:** `cargo test --package safessh-ssh --test mock_files`\n\n```json:metadata\n{\"files\": [\"crates/safessh-ssh/src/driver.rs\", \"crates/safessh-ssh/src/mock.rs\", \"crates/safessh-ssh/src/openssh.rs\", \"crates/safessh-ssh/tests/mock_files.rs\"], \"verifyCommand\": \"cargo test --package safessh-ssh --test mock_files\", \"acceptanceCriteria\": [\"trait extended\", \"FileReadResult/FileWriteResult\", \"mock cap truncation\", \"mock NotFound\", \"write-then-read round trips\"]}\n```"
     },
     {
       "id": 5,
-      "subject": "Task 5: OpenSshDriver::read_file — sftp batch with cap",
-      "status": "pending",
-      "blockedBy": [4],
+      "subject": "Task 5: OpenSshDriver::read_file \u2014 sftp batch with cap",
+      "status": "completed",
+      "blockedBy": [
+        4
+      ],
       "description": "**Goal:** Real read_file driving sftp -b - over ControlMaster. realpath + cap-driven kill.\n\n**Files:** crates/safessh-ssh/src/openssh.rs\n\n**Verify:** `cargo test --package safessh-ssh`\n\n```json:metadata\n{\"files\": [\"crates/safessh-ssh/src/openssh.rs\"], \"verifyCommand\": \"cargo test --package safessh-ssh\", \"acceptanceCriteria\": [\"sftp -b - via ControlMaster\", \"cap-driven truncation\", \"realpath resolution\", \"no-such-file error class\"]}\n```"
     },
     {
       "id": 6,
-      "subject": "Task 6: OpenSshDriver::write_file — atomic temp + rename",
-      "status": "pending",
-      "blockedBy": [4],
+      "subject": "Task 6: OpenSshDriver::write_file \u2014 atomic temp + rename",
+      "status": "completed",
+      "blockedBy": [
+        4
+      ],
       "description": "**Goal:** Atomic remote write via temp + sftp rename. SAFETY-INVARIANT-13.\n\n**Files:** crates/safessh-ssh/Cargo.toml (rand, tempfile), crates/safessh-ssh/src/openssh.rs\n\n**Verify:** `cargo test --package safessh-ssh`\n\n```json:metadata\n{\"files\": [\"crates/safessh-ssh/Cargo.toml\", \"crates/safessh-ssh/src/openssh.rs\"], \"verifyCommand\": \"cargo test --package safessh-ssh\", \"acceptanceCriteria\": [\"sftp put + rename\", \"tempfile cleanup on failure\", \"SAFETY-INVARIANT-13 marker\", \"atomic semantics\"]}\n```"
     },
     {
       "id": 7,
-      "subject": "Task 7: commands/file_common.rs — shared decide+audit helper",
-      "status": "pending",
-      "blockedBy": [3],
+      "subject": "Task 7: commands/file_common.rs \u2014 shared decide+audit helper",
+      "status": "completed",
+      "blockedBy": [
+        3
+      ],
       "description": "**Goal:** Reusable file-op decide+audit helper. SAFETY-INVARIANT-4 by structure.\n\n**Files:** crates/safessh-cli/src/commands/file_common.rs, crates/safessh-cli/src/commands/mod.rs, crates/safessh-audit/src/event.rs\n\n**Verify:** `cargo build --package safessh-cli --package safessh-audit`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/file_common.rs\", \"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-audit/src/event.rs\"], \"verifyCommand\": \"cargo build --package safessh-cli --package safessh-audit\", \"acceptanceCriteria\": [\"decide_file_op writes audit attempt\", \"sha256_hex helper\", \"audit event constructors\", \"no SSH I/O\"]}\n```"
     },
     {
       "id": 8,
-      "subject": "Task 8: commands/read.rs — safessh project read path",
-      "status": "pending",
-      "blockedBy": [5, 7],
-      "description": "**Goal:** End-to-end read subcommand: argv → policy → sftp read → redactor → framed stdout → _complete audit.\n\n**Files:** crates/safessh-cli/src/commands/read.rs, crates/safessh-cli/src/commands/mod.rs, crates/safessh-cli/tests/read_cli.rs\n\n**Verify:** `cargo test --package safessh-cli --test read_cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/read.rs\", \"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-cli/tests/read_cli.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test read_cli\", \"acceptanceCriteria\": [\"framed stdout\", \"audit attempt+complete\", \"--on routing\", \"all-decision exit codes\", \"redactor applied\"]}\n```"
+      "subject": "Task 8: commands/read.rs \u2014 safessh project read path",
+      "status": "completed",
+      "blockedBy": [
+        5,
+        7
+      ],
+      "description": "**Goal:** End-to-end read subcommand: argv \u2192 policy \u2192 sftp read \u2192 redactor \u2192 framed stdout \u2192 _complete audit.\n\n**Files:** crates/safessh-cli/src/commands/read.rs, crates/safessh-cli/src/commands/mod.rs, crates/safessh-cli/tests/read_cli.rs\n\n**Verify:** `cargo test --package safessh-cli --test read_cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/read.rs\", \"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-cli/tests/read_cli.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test read_cli\", \"acceptanceCriteria\": [\"framed stdout\", \"audit attempt+complete\", \"--on routing\", \"all-decision exit codes\", \"redactor applied\"]}\n```"
     },
     {
       "id": 9,
-      "subject": "Task 9: commands/write.rs — safessh project write path",
-      "status": "pending",
-      "blockedBy": [6, 7, 8],
-      "description": "**Goal:** Write subcommand. Stdin cap. No redaction. Adds file_write_cap_bytes.\n\n**Files:** crates/safessh-cli/src/commands/write.rs, crates/safessh-cli/src/commands/mod.rs, crates/safessh-cli/tests/write_cli.rs, crates/safessh-storage/src/project.rs\n\n**Verify:** `cargo test --package safessh-cli --test write_cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/write.rs\", \"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-cli/tests/write_cli.rs\", \"crates/safessh-storage/src/project.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test write_cli\", \"acceptanceCriteria\": [\"happy path round trip\", \"stdin cap → exit 30 no write\", \"approval flow exit 10\", \"no redaction\"]}\n```"
+      "subject": "Task 9: commands/write.rs \u2014 safessh project write path",
+      "status": "completed",
+      "blockedBy": [
+        6,
+        7,
+        8
+      ],
+      "description": "**Goal:** Write subcommand. Stdin cap. No redaction. Adds file_write_cap_bytes.\n\n**Files:** crates/safessh-cli/src/commands/write.rs, crates/safessh-cli/src/commands/mod.rs, crates/safessh-cli/tests/write_cli.rs, crates/safessh-storage/src/project.rs\n\n**Verify:** `cargo test --package safessh-cli --test write_cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/write.rs\", \"crates/safessh-cli/src/commands/mod.rs\", \"crates/safessh-cli/tests/write_cli.rs\", \"crates/safessh-storage/src/project.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli --test write_cli\", \"acceptanceCriteria\": [\"happy path round trip\", \"stdin cap \u2192 exit 30 no write\", \"approval flow exit 10\", \"no redaction\"]}\n```"
     },
     {
       "id": 10,
-      "subject": "Task 10: Verb dispatch — route read/write from External",
-      "status": "pending",
-      "blockedBy": [8, 9],
+      "subject": "Task 10: Verb dispatch \u2014 route read/write from External",
+      "status": "completed",
+      "blockedBy": [
+        8,
+        9
+      ],
       "description": "**Goal:** Make exec.rs helpers visible; main.rs routes External args[1].\n\n**Files:** crates/safessh-cli/src/commands/exec.rs, crates/safessh-cli/src/main.rs, crates/safessh-cli/tests/dispatch.rs\n\n**Verify:** `cargo test --package safessh-cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/exec.rs\", \"crates/safessh-cli/src/main.rs\", \"crates/safessh-cli/tests/dispatch.rs\"], \"verifyCommand\": \"cargo test --package safessh-cli\", \"acceptanceCriteria\": [\"read routes correctly\", \"write routes correctly\", \"exec unchanged\", \"unknown verb exit 2\"]}\n```"
     },
     {
       "id": 11,
       "subject": "Task 11: Container integration tests for sftp",
-      "status": "pending",
-      "blockedBy": [10],
+      "status": "completed",
+      "blockedBy": [
+        10
+      ],
       "description": "**Goal:** Real sftp behind --features integration: dockerized OpenSSH; read /etc/hostname; atomic write+readback; preset blocks /etc/shadow.\n\n**Files:** tests/integration/sftp.rs, tests/fixtures/integration/, Cargo.toml\n\n**Verify:** `cargo test --workspace --features integration` (Linux only)\n\n```json:metadata\n{\"files\": [\"tests/integration/sftp.rs\", \"tests/fixtures/integration/\", \"Cargo.toml\"], \"verifyCommand\": \"cargo test --workspace --features integration\", \"acceptanceCriteria\": [\"read /etc/hostname\", \"atomic write+readback\", \"preset blocks /etc/shadow at exit 12\"]}\n```"
     },
     {
       "id": 12,
-      "subject": "Task 12: Embedded skill markdown — file ops section",
-      "status": "pending",
-      "blockedBy": [11],
+      "subject": "Task 12: Embedded skill markdown \u2014 file ops section",
+      "status": "completed",
+      "blockedBy": [
+        11
+      ],
       "description": "**Goal:** Add Reading and writing files section to safessh.md; re-snapshot insta.\n\n**Files:** crates/safessh-skill/src/safessh.md\n\n**Verify:** `cargo test --package safessh-skill && cargo insta accept --package safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/safessh.md\"], \"verifyCommand\": \"cargo test --package safessh-skill\", \"acceptanceCriteria\": [\"read+write documented\", \"BLOCKED token format\", \"redaction direction\", \"preset noted\", \"snapshots regenerated\"]}\n```"
     },
     {
       "id": 13,
-      "subject": "Task 13: TUI Approvals — file rule action variant",
-      "status": "pending",
-      "blockedBy": [1, 9],
+      "subject": "Task 13: TUI Approvals \u2014 file rule action variant",
+      "status": "completed",
+      "blockedBy": [
+        1,
+        9
+      ],
       "description": "**Goal:** File-op approvals trigger FileRule write on Always-allow; pending row format adapts.\n\n**Files:** crates/safessh-tui/src/screens/approvals.rs, crates/safessh-storage/src/approvals.rs\n\n**Verify:** `cargo test --package safessh-tui`\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/approvals.rs\", \"crates/safessh-storage/src/approvals.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui\", \"acceptanceCriteria\": [\"file approval row format\", \"Always-allow writes file_rule\", \"exec path unchanged\"]}\n```"
     },
     {
       "id": 14,
-      "subject": "Task 14: TUI Rules — File tab",
-      "status": "pending",
-      "blockedBy": [1],
+      "subject": "Task 14: TUI Rules \u2014 File tab",
+      "status": "completed",
+      "blockedBy": [
+        1
+      ],
       "description": "**Goal:** Fourth tab: list project.policy.file_rules; d removes; persisted via ProjectStore.\n\n**Files:** crates/safessh-tui/src/screens/rules.rs\n\n**Verify:** `cargo test --package safessh-tui`\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/rules.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui\", \"acceptanceCriteria\": [\"File tab renders\", \"delete via d\", \"empty state message\", \"snapshots accepted\"]}\n```"
     },
     {
       "id": 15,
-      "subject": "Task 15: TUI Audit — file event one-liners",
-      "status": "pending",
-      "blockedBy": [11],
+      "subject": "Task 15: TUI Audit \u2014 file event one-liners",
+      "status": "completed",
+      "blockedBy": [
+        11
+      ],
       "description": "**Goal:** Audit screen renders file_read*/file_write* one-liners with byte formatting + truncated marker.\n\n**Files:** crates/safessh-tui/src/screens/audit.rs\n\n**Verify:** `cargo test --package safessh-tui`\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/audit.rs\"], \"verifyCommand\": \"cargo test --package safessh-tui\", \"acceptanceCriteria\": [\"file_read row\", \"file_write row\", \"byte formatter\", \"truncated marker\", \"snapshot accepted\"]}\n```"
     },
     {
       "id": 16,
       "subject": "Task 16: New docs/policy.md",
-      "status": "pending",
-      "blockedBy": [3],
+      "status": "completed",
+      "blockedBy": [
+        3
+      ],
       "description": "**Goal:** Standalone policy reference with categories, file_rules, glob syntax, decision precedence, presets.\n\n**Files:** docs/policy.md\n\n**Verify:** wc -l < 350\n\n```json:metadata\n{\"files\": [\"docs/policy.md\"], \"verifyCommand\": \"wc -l docs/policy.md\", \"acceptanceCriteria\": [\"under 350 lines\", \"categories cross-link\", \"file_rules examples\", \"precedence documented\", \"preset cannot override\"]}\n```"
     },
     {
       "id": 17,
       "subject": "Task 17: New docs/files.md",
-      "status": "pending",
-      "blockedBy": [10, 16],
+      "status": "completed",
+      "blockedBy": [
+        10,
+        16
+      ],
       "description": "**Goal:** User guide: when to use read/write vs exec; redaction direction; atomicity; --from-file rationale; examples.\n\n**Files:** docs/files.md\n\n**Verify:** wc -l < 250\n\n```json:metadata\n{\"files\": [\"docs/files.md\"], \"verifyCommand\": \"wc -l docs/files.md\", \"acceptanceCriteria\": [\"under 250 lines\", \"runnable examples\", \"--from-file rationale\", \"cross-link policy.md\"]}\n```"
     },
     {
       "id": 18,
       "subject": "Task 18: Surface v0.3 in README, CHANGELOG, cli-reference",
-      "status": "pending",
-      "blockedBy": [11, 12, 16, 17],
+      "status": "completed",
+      "blockedBy": [
+        11,
+        12,
+        16,
+        17
+      ],
       "description": "**Goal:** Top-level docs reflect shipped v0.3.\n\n**Files:** README.md, CHANGELOG.md, docs/cli-reference.md, docs/development.md\n\n**Verify:** `cargo test --workspace`\n\n```json:metadata\n{\"files\": [\"README.md\", \"CHANGELOG.md\", \"docs/cli-reference.md\", \"docs/development.md\"], \"verifyCommand\": \"cargo test --workspace\", \"acceptanceCriteria\": [\"README features row\", \"CHANGELOG [0.3.0]\", \"cli-reference read/write\", \"tests pass\"]}\n```"
     },
     {
       "id": 19,
-      "subject": "Task 19: Release rehearsal — rc.1 → v0.3.0",
-      "status": "pending",
-      "blockedBy": [11, 12, 13, 14, 15, 16, 17, 18],
-      "description": "**Goal:** Merge → tag rc.1 → clean-machine verify (macOS arm64 + Linux x86_64) → promote v0.3.0 → back-merge.\n\n**Files:** docs/RELEASE-CHECKLIST.md, CHANGELOG.md (release date)\n\n**Verify:** Manual.\n\n```json:metadata\n{\"files\": [\"docs/RELEASE-CHECKLIST.md\", \"CHANGELOG.md\"], \"verifyCommand\": \"manual\", \"acceptanceCriteria\": [\"rc.1 cargo-dist artifacts\", \"macOS clean run\", \"Linux container clean run\", \"v0.3.0 tag\", \"back-merge to develop\"]}\n```"
+      "subject": "Task 19: Release rehearsal \u2014 rc.1 \u2192 v0.3.0",
+      "status": "completed",
+      "blockedBy": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "description": "**Goal:** Merge \u2192 tag rc.1 \u2192 clean-machine verify (macOS arm64 + Linux x86_64) \u2192 promote v0.3.0 \u2192 back-merge.\n\n**Files:** docs/RELEASE-CHECKLIST.md, CHANGELOG.md (release date)\n\n**Verify:** Manual.\n\n```json:metadata\n{\"files\": [\"docs/RELEASE-CHECKLIST.md\", \"CHANGELOG.md\"], \"verifyCommand\": \"manual\", \"acceptanceCriteria\": [\"rc.1 cargo-dist artifacts\", \"macOS clean run\", \"Linux container clean run\", \"v0.3.0 tag\", \"back-merge to develop\"]}\n```"
     }
   ]
 }
