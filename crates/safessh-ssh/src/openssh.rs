@@ -103,7 +103,20 @@ impl OpenSshDriver {
         let cp = control_path_for(&self.control_dir);
         let host_arg = openssh_host_arg(target);
 
-        let mut child = Command::new("sftp")
+        // sftp uses `-P` (upper-case) for the port number, unlike `ssh -p`.
+        // When the target specifies a non-default port we must pass it so that
+        // the `%C` ControlPath token expands to the same hash that `ssh` used
+        // when it created the master socket. Without the matching port the two
+        // expansions diverge and sftp falls back to a fresh TCP connection.
+        let port_args: Vec<String> = match target {
+            Target::Inline { port, .. } if *port != 22 => {
+                vec!["-P".to_string(), port.to_string()]
+            }
+            _ => vec![],
+        };
+
+        let mut cmd = Command::new("sftp");
+        cmd.args(&port_args)
             .arg("-o")
             .arg(format!("ControlPath={}", cp.display()))
             .arg("-o")
@@ -115,7 +128,8 @@ impl OpenSshDriver {
             .arg(host_arg)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        let mut child = cmd
             .spawn()
             .map_err(|e| Error::Storage(format!("sftp spawn: {e}")))?;
 
@@ -273,29 +287,74 @@ impl SshDriver for OpenSshDriver {
         path: &str,
         cap_bytes: u64,
     ) -> Result<FileReadResult> {
-        // Sub-batch 1: resolve the canonical path.
+        // Sub-batch 1: resolve the canonical path via `@realpath`.
+        //
+        // The `@` prefix makes sftp continue (exit 0) even if realpath fails,
+        // but some sftp clients (macOS OpenSSH 10.x) do not support the
+        // `realpath` command in batch mode and return "Invalid command." with a
+        // non-zero exit. In that case we fall back to using `path` unchanged —
+        // symlinks won't be resolved but the audit record's `canonical_path`
+        // field will still contain the caller-supplied path, which is correct
+        // enough for the audit trail.
         let realpath_script = format!("@realpath \"{}\"\n", path.replace('"', "\\\""));
         let (realpath_out, realpath_err, code) =
             self.sftp_batch(target, &realpath_script, None).await?;
-        if code != 0 {
+        let canonical = if code != 0 {
             let s = String::from_utf8_lossy(&realpath_err);
             if s.contains("No such file") {
                 return Err(Error::Storage(format!("no such remote file: {path}")));
             }
-            return Err(Error::Storage(format!("sftp realpath failed: {s}")));
-        }
-        let canonical = String::from_utf8_lossy(&realpath_out).trim().to_string();
+            // Client doesn't support realpath (e.g. macOS sftp): use path as-is.
+            path.to_string()
+        } else {
+            String::from_utf8_lossy(&realpath_out).trim().to_string()
+        };
 
-        // Sub-batch 2: download to /dev/stdout; kill child when cap is reached.
-        // TODO(v0.7): consider portable fallback for non-Linux remotes where
-        // /dev/stdout may not exist.
+        // Sub-batch 2: download to a local temp file then read it back.
+        //
+        // Using `/dev/stdout` as the sftp `get` destination does NOT work when
+        // sftp's stdout is connected to a pipe (the common case when run from
+        // Rust or any non-terminal parent): sftp calls `ftruncate` and `lseek`
+        // on the local file before writing, which fail with ESPIPE/EINVAL on a
+        // pipe, causing sftp to emit "Illegal seek" and produce no output. This
+        // affects macOS OpenSSH 9.x/10.x; Linux sftp is less strict.
+        //
+        // Instead we download into a `tempfile::NamedTempFile`, read it back
+        // (applying the byte cap manually), and delete it on drop. The local
+        // I/O is negligible compared to the sftp round-trip.
+        let local_tmp = tempfile::NamedTempFile::new()
+            .map_err(|e| Error::Storage(format!("local read tempfile: {e}")))?;
+        let local_path = local_tmp.path().to_path_buf();
+
         let get_script = format!(
-            "get -p \"{}\" /dev/stdout\n",
-            canonical.replace('"', "\\\"")
+            "get \"{}\" \"{}\"\n",
+            canonical.replace('"', "\\\""),
+            local_path.display().to_string().replace('"', "\\\""),
         );
-        let (bytes, _stderr, _code) =
-            self.sftp_batch(target, &get_script, Some(cap_bytes)).await?;
-        let truncated = bytes.len() as u64 == cap_bytes;
+        let (_out, err, code) = self.sftp_batch(target, &get_script, None).await?;
+        if code != 0 {
+            let s = String::from_utf8_lossy(&err);
+            if s.contains("No such file") || s.contains("not found") {
+                return Err(Error::Storage(format!("no such remote file: {path}")));
+            }
+            return Err(Error::Storage(format!("sftp get failed: {s}")));
+        }
+
+        // Apply byte cap: read up to `cap_bytes` from the local file.
+        let mut file = std::fs::File::open(&local_path)
+            .map_err(|e| Error::Storage(format!("open local download: {e}")))?;
+        let file_len = file
+            .metadata()
+            .map(|m| m.len())
+            .unwrap_or(0);
+        let mut bytes = Vec::with_capacity(cap_bytes.min(file_len) as usize);
+        use std::io::Read;
+        file.by_ref()
+            .take(cap_bytes)
+            .read_to_end(&mut bytes)
+            .map_err(|e| Error::Storage(format!("read local download: {e}")))?;
+        let truncated = file_len > cap_bytes;
+
         Ok(FileReadResult {
             bytes,
             canonical_path: canonical,
