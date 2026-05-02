@@ -1,0 +1,16 @@
+---
+source: crates/safessh-tui/tests/audit_snapshot.rs
+expression: render(&s)
+---
+filters:  /p=-  /t=-  /g=-                                                                          
+┌Audit  (5 events, live)───────────────────────────────────────────────────────────────────────────┐
+│  TIME     TYPE                 PROJECT         SUMMARY                                           │
+│  10:20:00 file_read            prod            file_read /etc/nginx/nginx.conf                   │
+│  10:20:01 file_read_complete   prod            file_read /etc/nginx/nginx.conf (512B)            │
+│  10:20:10 file_write           prod            file_write /tmp/config.txt                        │
+│  10:20:11 file_write_complete  prod            file_write /tmp/config.txt (1.0KB)                │
+│> 10:20:20 file_read_complete   staging         file_read /var/log/app.log (5.0MB, truncated)     │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
