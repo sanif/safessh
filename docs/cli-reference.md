@@ -1,6 +1,6 @@
 # CLI reference
 
-Everything the `safessh` binary exposes in v0.1. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
+Everything the `safessh` binary exposes through v0.2. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
 
 ## Global flags
 
@@ -12,19 +12,23 @@ Everything the `safessh` binary exposes in v0.1. Run `safessh --help` for the li
 
 ## `safessh <project> exec "<command>"`
 
-Run a command on the project's default target. The project name is captured as an external subcommand, so the literal command string is passed through verbatim.
+Run a command on a project target (the project's `default_target` unless `--on` is given). The project name is captured as an external subcommand, so the literal command string is passed through verbatim.
 
 **Usage:**
 
 ```sh
 safessh <project> exec "<command>"
 safessh <project> exec --yolo "<command>"
+safessh <project> --on <target> exec "<command>"
+safessh <project> exec --on <target> "<command>"      # equivalent
+safessh <project> exec --on=<target> "<command>"      # equivalent
 ```
 
 **Example:**
 
 ```sh
 safessh prod exec "ls -la /var/log"
+safessh prod --on db exec "psql -c 'select 1'"
 safessh staging exec 'systemctl status nginx'
 ```
 
@@ -35,6 +39,10 @@ The command runs through the policy engine. Possible outcomes:
 - **Block** — exits 11 with a rule reference.
 - **Deny** — exits 12 with a reason.
 
+`--on` resolution: the value must match a `[[targets]] name` in the project TOML. Unknown target names exit 2 with `safessh: usage: usage: no such target: <name>`. Without `--on` the project's `default_target` is used (back-compat with v0.1).
+
+See [docs/projects.md](projects.md) for the multi-target model.
+
 ## `safessh project add <name> [flags]`
 
 Register a new project.
@@ -43,19 +51,60 @@ Register a new project.
 
 | Flag | Description |
 |---|---|
-| `--alias <alias>` | Reuse an existing `~/.ssh/config` alias. Mutually exclusive with `--host`/`--user`. |
+| `--alias <alias>` | Reuse an existing `~/.ssh/config` alias (lazy resolution at exec time). Mutually exclusive with `--host`/`--user`/`--import-ssh-config`. |
 | `--host <host>` | Hostname to connect to. Requires `--user`. |
 | `--user <user>` | Remote username. Requires `--host`. |
 | `--port <port>` | SSH port. Default `22`. |
+| `--import-ssh-config <name>` | Snapshot `host`/`user`/`port`/`identity_file` from the matching `Host <name>` block of `~/.ssh/config` (or `$SSH_CONFIG_PATH`) into a new `Inline` target. Conflicts with `--alias`/`--host`/`--user` (clap exit 2). ProxyJump is not imported — use `--alias` if you need it. |
 
-Specify either `--alias` **or** the `--host`/`--user` pair. The new project starts with `allow = ["read:safe", "file:read"]` and an empty deny / require-approval list.
+Specify exactly one of: `--alias`, the `--host`/`--user` pair, or `--import-ssh-config`. The new project starts with `allow = ["read:safe", "file:read"]` and an empty deny / require-approval list.
 
 **Examples:**
 
 ```sh
 safessh project add prod --alias my-prod-host
 safessh project add staging --host staging.example.com --user deploy
+safessh project add prod --import-ssh-config my-prod-host
 ```
+
+See [docs/projects.md](projects.md#alias-vs-import--which-to-choose) for the alias-vs-import decision matrix.
+
+## `safessh project target add <project> --name <name> [flags]`
+
+Append a new target to an existing project's `targets` array.
+
+| Flag | Description |
+|---|---|
+| `--name <name>` | Target name (required, unique within the project). |
+| `--alias <alias>` | SshConfigAlias target. Mutually exclusive with `--host`/`--user`. |
+| `--host <host>` | Inline target host. Requires `--user`. |
+| `--user <user>` | Inline target user. Requires `--host`. |
+| `--port <port>` | Inline target port. Default `22`. |
+| `--identity <path>` | Path to an identity file. Inline targets only. |
+| `--proxy-jump <host>` | ProxyJump host. Inline targets only. |
+
+Duplicate `--name` within the same project exits 2.
+
+**Examples:**
+
+```sh
+safessh project target add prod --name db --alias prod-db
+safessh project target add prod --name web --host web.prod.internal --user www
+```
+
+## `safessh project target list <project>`
+
+Print one line per target in `<project>`. The project's `default_target` is marked `[default]`.
+
+```
+default [default]  alias=prod-host
+db                 alias=prod-db
+web                www@web.prod.internal:22
+```
+
+## `safessh project target remove <project> --name <name>`
+
+Remove the named target. Refuses with exit 1 if `<name>` is the project's `default_target` (re-point it via `project edit` first). Unknown names exit 1 with `no such target: <name>`.
 
 ## `safessh project list`
 
@@ -171,6 +220,19 @@ Detect installed agent frameworks and report, per scope:
 - Installed but drifted (re-run `install` to refresh).
 
 Also prints the embedded-content hash so you can compare across machines.
+
+## `safessh tui`
+
+Launch the interactive terminal UI. Four screens (Projects / Approvals / Rules / Audit) share a `notify` watcher so external edits land within ~250 ms.
+
+Refuses non-TTY environments with exit 1:
+
+```
+$ safessh tui </dev/null
+safessh: error: tui requires a TTY
+```
+
+See [docs/tui.md](tui.md) for screen layouts, the full keymap, and snapshot-test workflow.
 
 ## Output framing
 

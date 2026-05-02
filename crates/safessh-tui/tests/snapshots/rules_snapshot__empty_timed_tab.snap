@@ -1,0 +1,10 @@
+---
+source: crates/safessh-tui/tests/rules_snapshot.rs
+assertion_line: 69
+expression: render(&s)
+---
+project: < prod >  (1/1)                                                                            
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Timed │ Always │ Blocked                                                                         │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+No timed rules for prod.

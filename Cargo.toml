@@ -7,11 +7,12 @@ members = [
     "crates/safessh-audit",
     "crates/safessh-ssh",
     "crates/safessh-skill",
+    "crates/safessh-tui",
     "crates/safessh-cli",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT OR Apache-2.0"
@@ -20,12 +21,13 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Internal
-safessh-core    = { path = "crates/safessh-core",    version = "0.1.0" }
-safessh-storage = { path = "crates/safessh-storage", version = "0.1.0" }
-safessh-policy  = { path = "crates/safessh-policy",  version = "0.1.0" }
-safessh-audit   = { path = "crates/safessh-audit",   version = "0.1.0" }
-safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.1.0" }
-safessh-skill   = { path = "crates/safessh-skill",   version = "0.1.0" }
+safessh-core    = { path = "crates/safessh-core",    version = "0.2.0" }
+safessh-storage = { path = "crates/safessh-storage", version = "0.2.0" }
+safessh-policy  = { path = "crates/safessh-policy",  version = "0.2.0" }
+safessh-audit   = { path = "crates/safessh-audit",   version = "0.2.0" }
+safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.2.0" }
+safessh-skill   = { path = "crates/safessh-skill",   version = "0.2.0" }
+safessh-tui     = { path = "crates/safessh-tui",     version = "0.2.0" }
 
 # Common
 serde       = { version = "1", features = ["derive"] }
@@ -36,6 +38,12 @@ anyhow      = "1"
 tokio       = { version = "1", features = ["full"] }
 tracing     = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# TUI
+ratatui     = "0.28"
+crossterm   = "0.28"
+notify      = "6"
+notify-debouncer-mini = "0.4"
 
 # Testing
 proptest    = "1"

@@ -18,6 +18,7 @@ safessh-policy  = { workspace = true }
 safessh-audit   = { workspace = true }
 safessh-ssh     = { workspace = true }
 safessh-skill   = { workspace = true }
+safessh-tui     = { workspace = true }
 clap            = { version = "4", features = ["derive"] }
 tokio           = { workspace = true }
 anyhow          = { workspace = true }

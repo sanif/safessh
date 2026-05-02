@@ -15,9 +15,11 @@ fs2 = "0.4"
 directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
 keyring = "2"
+ssh2-config = "0.3"
 
 [features]
 test-support = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
+filetime = "0.2"

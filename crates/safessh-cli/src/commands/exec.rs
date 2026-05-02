@@ -57,19 +57,10 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<()> {
     // `--yolo` is declared as a top-level global flag, but clap's
     // `external_subcommand` capture passes argv through verbatim — so when
     // the user writes `safessh prod exec --yolo "..."` the flag arrives here
-    // inside `args`, not parsed onto `Cli::yolo`. Strip it (anywhere in the
-    // external argv) and OR it with the top-level value so both placements
-    // work identically.
-    let mut filtered: Vec<String> = Vec::with_capacity(args.len());
-    let mut yolo_in_args = false;
-    for a in args {
-        if a == "--yolo" {
-            yolo_in_args = true;
-        } else {
-            filtered.push(a);
-        }
-    }
-    let args = filtered;
+    // inside `args`, not parsed onto `Cli::yolo`. `--on <target>` lives only
+    // in this external argv (no clap declaration). Strip both anywhere in
+    // the argv; OR `--yolo` with the top-level value so both placements work.
+    let (args, yolo_in_args, on_target) = parse_extras(args);
     let yolo = yolo || yolo_in_args;
 
     if args.len() < 3 || args[1] != "exec" {
@@ -112,7 +103,62 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<()> {
         decide_and_record(&paths, &project, &project_name, &raw_command, &writer)?;
     }
 
-    exec_and_frame(&paths, &project, &project_name, &raw_command, &writer).await
+    exec_and_frame(
+        &paths,
+        &project,
+        &project_name,
+        &raw_command,
+        &writer,
+        on_target.as_deref(),
+    )
+    .await
+}
+
+/// Strip `--yolo` and `--on <target>` (or `--on=<target>`) from the
+/// external-subcommand argv. Both flags can appear anywhere because clap
+/// doesn't see them — `external_subcommand` passes argv through verbatim.
+///
+/// Returns `(remaining_args, yolo_seen, on_target_value)`.
+fn parse_extras(args: Vec<String>) -> (Vec<String>, bool, Option<String>) {
+    let mut filtered: Vec<String> = Vec::with_capacity(args.len());
+    let mut yolo = false;
+    let mut on_target: Option<String> = None;
+    let mut iter = args.into_iter();
+    while let Some(a) = iter.next() {
+        if a == "--yolo" {
+            yolo = true;
+            continue;
+        }
+        if a == "--on" {
+            on_target = iter.next();
+            continue;
+        }
+        if let Some(rest) = a.strip_prefix("--on=") {
+            on_target = Some(rest.to_string());
+            continue;
+        }
+        filtered.push(a);
+    }
+    (filtered, yolo, on_target)
+}
+
+/// Resolve the target the command should run on.
+///
+/// `on` is the optional `--on <name>` value; absent it, the project's
+/// `default_target` is used. Returns [`Error::Usage`] (exit 2) when the
+/// requested name doesn't exist — both `--on missing` and a misconfigured
+/// `default_target` map here, since either way the user/agent named a
+/// target that isn't there.
+fn resolve_target<'a>(
+    project: &'a Project,
+    on: Option<&str>,
+) -> Result<&'a safessh_storage::project::Target> {
+    let want = on.unwrap_or(project.default_target.as_str());
+    project
+        .targets
+        .iter()
+        .find(|t| t.name() == want)
+        .ok_or_else(|| Error::Usage(format!("no such target: {want}")))
 }
 
 /// Run the policy engine and apply its decision. Returns `Ok(())` if the
@@ -248,21 +294,21 @@ fn decide_and_record(
     Ok(())
 }
 
-/// Resolve the project's default target, run the SSH driver, and emit the
-/// framed stdout/stderr block (post-redaction). Shared by the policy-allowed
-/// and yolo-bypass paths so output handling is identical for both.
+/// Resolve the requested target, run the SSH driver, and emit the framed
+/// stdout/stderr block (post-redaction). Shared by the policy-allowed and
+/// yolo-bypass paths so output handling is identical for both.
+///
+/// `on_target` is the optional `--on <name>` selector; falls back to
+/// `project.default_target`.
 async fn exec_and_frame(
     paths: &Paths,
     project: &Project,
     project_name: &str,
     raw_command: &str,
     writer: &AuditWriter,
+    on_target: Option<&str>,
 ) -> Result<()> {
-    let target = project
-        .targets
-        .iter()
-        .find(|t| t.name() == project.default_target)
-        .ok_or_else(|| Error::Config(format!("no target named {}", project.default_target)))?;
+    let target = resolve_target(project, on_target)?;
 
     let driver = OpenSshDriver::new(paths.cache.join("control-sockets"))?;
     let stdout_buf = Arc::new(Mutex::new(Vec::<u8>::new()));
@@ -306,4 +352,120 @@ async fn exec_and_frame(
         std::process::exit(result.exit_code);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use safessh_storage::project::{Approvals, OutputCaps, Policy, Target};
+
+    fn make_project() -> Project {
+        Project {
+            name: "multi".into(),
+            default_target: "web".into(),
+            targets: vec![
+                Target::SshConfigAlias {
+                    name: "web".into(),
+                    ssh_config_alias: "web-alias".into(),
+                },
+                Target::SshConfigAlias {
+                    name: "db".into(),
+                    ssh_config_alias: "db-alias".into(),
+                },
+            ],
+            policy: Policy::default(),
+            approvals: Approvals::default(),
+            output: OutputCaps::default(),
+        }
+    }
+
+    #[test]
+    fn parse_extras_strips_yolo_anywhere() {
+        let (rest, yolo, on) = parse_extras(
+            ["prod", "exec", "--yolo", "ls"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        assert_eq!(rest, vec!["prod", "exec", "ls"]);
+        assert!(yolo);
+        assert_eq!(on, None);
+    }
+
+    #[test]
+    fn parse_extras_strips_on_with_space() {
+        let (rest, _, on) = parse_extras(
+            ["prod", "--on", "db", "exec", "ls"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        assert_eq!(rest, vec!["prod", "exec", "ls"]);
+        assert_eq!(on.as_deref(), Some("db"));
+    }
+
+    #[test]
+    fn parse_extras_strips_on_equals_form() {
+        let (rest, _, on) = parse_extras(
+            ["prod", "exec", "--on=db", "ls"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        assert_eq!(rest, vec!["prod", "exec", "ls"]);
+        assert_eq!(on.as_deref(), Some("db"));
+    }
+
+    #[test]
+    fn parse_extras_strips_on_at_tail() {
+        let (rest, _, on) = parse_extras(
+            ["prod", "exec", "ls", "--on", "db"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        assert_eq!(rest, vec!["prod", "exec", "ls"]);
+        assert_eq!(on.as_deref(), Some("db"));
+    }
+
+    #[test]
+    fn parse_extras_combines_yolo_and_on() {
+        let (rest, yolo, on) = parse_extras(
+            ["prod", "--yolo", "--on", "db", "exec", "ls"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        assert_eq!(rest, vec!["prod", "exec", "ls"]);
+        assert!(yolo);
+        assert_eq!(on.as_deref(), Some("db"));
+    }
+
+    #[test]
+    fn resolve_target_picks_named() {
+        let p = make_project();
+        let t = resolve_target(&p, Some("db")).unwrap();
+        match t {
+            Target::SshConfigAlias {
+                ssh_config_alias, ..
+            } => assert_eq!(ssh_config_alias, "db-alias"),
+            _ => panic!("expected SshConfigAlias"),
+        }
+    }
+
+    #[test]
+    fn resolve_target_falls_back_to_default() {
+        let p = make_project();
+        let t = resolve_target(&p, None).unwrap();
+        assert_eq!(t.name(), "web");
+    }
+
+    #[test]
+    fn resolve_target_unknown_returns_usage_error() {
+        let p = make_project();
+        let err = resolve_target(&p, Some("ghost")).unwrap_err();
+        assert!(matches!(err, Error::Usage(_)));
+        assert_eq!(err.exit_code(), 2);
+        assert!(format!("{err}").contains("no such target: ghost"));
+    }
 }

@@ -1,0 +1,7 @@
+---
+source: crates/safessh-tui/tests/audit_snapshot.rs
+assertion_line: 40
+expression: render(&s)
+---
+filters:  /p=-  /t=-  /g=-                                                                          
+No audit events yet.

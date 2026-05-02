@@ -79,12 +79,60 @@ pub enum ProjectCmd {
         user: Option<String>,
         #[arg(long, default_value_t = 22)]
         port: u16,
+        /// Materialize the new project's first target by importing values
+        /// from `~/.ssh/config` (or `$SSH_CONFIG_PATH`). The matching `Host`
+        /// block's `HostName`/`User`/`Port`/`IdentityFile` populate an
+        /// `Inline` target. `ProxyJump` is *not* imported (ssh2-config 0.3
+        /// does not expose it); use `--alias` to defer to ssh-config at
+        /// exec time when ProxyJump is required.
+        #[arg(long, conflicts_with_all = ["alias", "host", "user"])]
+        import_ssh_config: Option<String>,
     },
     List,
     Edit {
         name: String,
     },
     Remove {
+        name: String,
+    },
+    /// Manage the target list of an existing project.
+    Target {
+        #[command(subcommand)]
+        cmd: TargetCmd,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TargetCmd {
+    /// Append a new target to a project. Either `--alias` (ssh-config
+    /// reference) or both `--host` and `--user` (inline target) must be
+    /// supplied; mixing the two forms is rejected.
+    Add {
+        /// Name of the project to add the target to.
+        project: String,
+        /// Name for the new target (must be unique within the project).
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        alias: Option<String>,
+        #[arg(long)]
+        host: Option<String>,
+        #[arg(long)]
+        user: Option<String>,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        #[arg(long)]
+        identity: Option<std::path::PathBuf>,
+        #[arg(long)]
+        proxy_jump: Option<String>,
+    },
+    /// List targets for a project, marking the default with `[default]`.
+    List { project: String },
+    /// Remove a target by name. Refuses to remove the project's
+    /// `default_target` (re-point it first via `project edit`).
+    Remove {
+        project: String,
+        #[arg(long)]
         name: String,
     },
 }

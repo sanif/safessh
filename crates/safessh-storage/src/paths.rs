@@ -3,6 +3,7 @@
 use directories::ProjectDirs;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone)]
 pub struct Paths {
     pub config: PathBuf,
     pub state: PathBuf,
@@ -47,6 +48,10 @@ impl Paths {
 
     pub fn config_file(&self) -> PathBuf {
         self.config.join("config.toml")
+    }
+
+    pub fn ssh_config_snapshot(&self) -> PathBuf {
+        self.cache.join("ssh-config-snapshot.toml")
     }
 
     pub fn ensure_dirs(&self) -> std::io::Result<()> {
