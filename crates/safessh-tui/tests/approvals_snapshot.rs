@@ -64,6 +64,7 @@ fn one_pending_request() {
             raw: "rm -rf /tmp/x".into(),
             created_at: Utc::now(),
             path: None,
+            tunnel: None,
         })
         .unwrap();
     let s = ApprovalsScreen::load(&p).unwrap();
@@ -92,6 +93,7 @@ fn one_file_read_pending_request() {
             raw: "file:read /etc/hosts".into(),
             created_at: Utc::now(),
             path: Some("/etc/hosts".into()),
+            tunnel: None,
         })
         .unwrap();
     let s = ApprovalsScreen::load(&p).unwrap();

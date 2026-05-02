@@ -10,3 +10,4 @@ pub mod commands;
 pub mod errors;
 pub mod output;
 pub mod prompt;
+pub mod supervisor;

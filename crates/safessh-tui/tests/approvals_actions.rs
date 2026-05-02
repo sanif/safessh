@@ -38,6 +38,7 @@ fn setup_with_one() -> (tempfile::TempDir, Paths, String) {
             raw: "rm -rf /x".into(),
             created_at: Utc::now(),
             path: None,
+            tunnel: None,
         })
         .unwrap();
     (tmp, paths, token.into())
@@ -86,6 +87,7 @@ fn setup_file_read() -> (tempfile::TempDir, Paths, String) {
             raw: "file:read /etc/hosts".into(),
             created_at: Utc::now(),
             path: Some("/etc/hosts".into()),
+            tunnel: None,
         })
         .unwrap();
     (tmp, paths, token.into())

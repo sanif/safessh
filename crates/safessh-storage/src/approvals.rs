@@ -29,6 +29,10 @@ pub struct PendingRequest {
     /// parse fine via `#[serde(default)]` (backward compat).
     #[serde(default)]
     pub path: Option<String>,
+    /// Tunnel spec string for `network:tunnel` approvals (`local:host:port`).
+    /// `None` for exec / file approvals. Backward-compat via `serde(default)`.
+    #[serde(default)]
+    pub tunnel: Option<String>,
 }
 
 /// A pattern-based rule shared by `always` and `blocked` stores.
@@ -39,6 +43,11 @@ pub struct PatternRule {
     pub flags: Vec<String>,
     pub args_pattern: Option<String>,
     pub categories: Vec<String>,
+    /// `Some("network:tunnel")` for category-level rules used by tunnel
+    /// approval; `None` for exec rules that match by `binary` + flags.
+    /// Backward-compat via `serde(default)`.
+    #[serde(default)]
+    pub category: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 

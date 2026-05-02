@@ -18,7 +18,7 @@
 - **`--yolo`.** When you bypass the policy engine, the policy engine is bypassed. You still get audit logging (yolo events log *more*) and the redactor still applies, but allow/deny rules are gone for that invocation. See the warnings below.
 - **Network-side attacks against your remote hosts.** `safessh` shells out to OpenSSH; the security of the connection is whatever OpenSSH and your config provide.
 
-## Twelve safety invariants
+## Safety invariants
 
 These are the load-bearing rules. Each is enforced in code with a `// SAFETY-INVARIANT-N:` comment marker and asserted in tests.
 
@@ -34,6 +34,9 @@ These are the load-bearing rules. Each is enforced in code with a `// SAFETY-INV
 10. **No outbound network calls from `safessh` itself.** No telemetry, no auto-update, no version-check phone-home.
 11. **Skill content is binary-embedded, never fetched.** Updates ride with binary updates.
 12. **Concurrent invocations are race-safe.** Rule files are accessed under advisory file locks; CLI and (future) TUI cannot corrupt each other's writes.
+13. **Partial uploads are never visible.** sftp writes go to a temp file and are renamed into place atomically; a failed write leaves no half-written file at the destination path.
+14. **Preset deny-list cannot be overridden.** The compiled-in preset for sensitive paths (`/etc/shadow`, `~/.ssh/id_*`, etc.) is checked before any project rule; a project `allow` entry for a preset-blocked path has no effect.
+15. **`network:tunnel` is default-deny.** New tunnels require approval unless project policy or a persisted rule explicitly allows the `network:tunnel` category. The category cannot be unlocked implicitly (e.g. via a permissive wildcard rule).
 
 ## `--yolo` warnings
 

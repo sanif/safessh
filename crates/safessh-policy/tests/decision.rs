@@ -10,7 +10,7 @@
 
 use chrono::{Duration, Utc};
 use safessh_core::types::{AllowSource, PolicyDecision};
-use safessh_policy::decision::FileOp;
+use safessh_policy::decision::{FileOp, TunnelOp};
 use safessh_policy::{decide, DecisionInput};
 use safessh_storage::approvals::{PatternRule, TimedRule};
 use safessh_storage::project::Policy;
@@ -22,6 +22,7 @@ fn pattern(rule_id: &str, binary: &str, flags: &[&str]) -> PatternRule {
         flags: flags.iter().map(|s| (*s).to_string()).collect(),
         args_pattern: None,
         categories: vec![],
+        category: None,
         created_at: Utc::now(),
     }
 }
@@ -39,6 +40,7 @@ fn unparseable_requires_approval() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(d, PolicyDecision::RequireApproval { .. }),
@@ -64,6 +66,7 @@ fn block_takes_priority_over_allow() {
         blocks: &blocks,
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(d, PolicyDecision::Block { .. }),
@@ -91,6 +94,7 @@ fn read_safe_with_default_policy_allows() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(
@@ -122,6 +126,7 @@ fn deny_overrides_default_allow() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(matches!(d, PolicyDecision::Deny { .. }), "got {d:?}");
 }
@@ -144,6 +149,7 @@ fn timed_rule_wins_over_default_require_approval() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(
@@ -169,6 +175,7 @@ fn always_rule_allows_when_default_would_require_approval() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(
@@ -199,6 +206,7 @@ fn require_approval_overrides_default_allow() {
         blocks: &[],
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(
         matches!(d, PolicyDecision::RequireApproval { .. }),
@@ -219,6 +227,7 @@ fn flags_match_is_subset() {
         blocks: &blocks,
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
     assert!(matches!(d, PolicyDecision::Block { .. }), "got {d:?}");
 }

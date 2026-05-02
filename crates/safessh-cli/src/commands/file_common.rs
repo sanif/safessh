@@ -8,7 +8,7 @@ use safessh_audit::event;
 use safessh_audit::jsonl::AuditWriter;
 use safessh_core::error::Result;
 use safessh_core::types::{ParsedCommand, PolicyDecision};
-use safessh_policy::decision::{decide, DecisionInput, FileOp};
+use safessh_policy::decision::{decide, DecisionInput, FileOp, TunnelOp};
 use safessh_storage::approvals::{
     AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore,
 };
@@ -102,6 +102,7 @@ pub fn decide_file_op(
         blocks: &block_rules,
         file_op: op,
         preset_file_rules: preset_file_rules(),
+        tunnel_op: TunnelOp::None,
     });
 
     // SAFETY-INVARIANT-4: audit-write before any user-visible output.
@@ -134,6 +135,7 @@ pub fn decide_file_op(
                 raw: format!("{} {}", kind.category(), path),
                 created_at: chrono::Utc::now(),
                 path: Some(path.to_string()),
+                tunnel: None,
             };
             PendingStore::new(paths).add(&req)?;
         }
