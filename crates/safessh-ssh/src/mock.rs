@@ -54,6 +54,18 @@ impl MockDriver {
             .expect("MockDriver files mutex poisoned")
             .insert((target_name.to_string(), path.to_string()), bytes.into());
     }
+
+    /// Retrieve bytes that were written to the mock via `write_file`.
+    ///
+    /// Returns `None` if nothing has been written to that `(target, path)` pair.
+    /// Used in tests to assert what the mock received after a `write` call.
+    pub fn get_file(&self, target_name: &str, path: &str) -> Option<Vec<u8>> {
+        self.files
+            .lock()
+            .expect("MockDriver files mutex poisoned")
+            .get(&(target_name.to_string(), path.to_string()))
+            .cloned()
+    }
 }
 
 #[async_trait]

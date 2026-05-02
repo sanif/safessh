@@ -165,7 +165,7 @@ async fn read_happy_path_frames_stdout_and_audits() {
         "expected Ok(_), got: {:?}",
         result.unwrap_err()
     );
-    assert_eq!(result.unwrap(), false, "non-truncated read should return Ok(false)");
+    assert!(!result.unwrap(), "non-truncated read should return Ok(false)");
 
     let events = read_audit_events(&paths);
     assert!(
