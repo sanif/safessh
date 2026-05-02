@@ -172,6 +172,7 @@ impl ApprovalsScreen {
             flags: req.parsed.flags.clone(),
             args_pattern: None,
             categories: req.categories.clone(),
+            category: None,
             created_at: Utc::now(),
         };
         match action {

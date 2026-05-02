@@ -22,6 +22,7 @@ fn pattern(rule_id: &str, binary: &str, flags: &[&str]) -> PatternRule {
         flags: flags.iter().map(|s| (*s).to_string()).collect(),
         args_pattern: None,
         categories: vec![],
+        category: None,
         created_at: Utc::now(),
     }
 }

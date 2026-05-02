@@ -235,6 +235,7 @@ fn decide_and_record(
                     flags: parsed.flags.clone(),
                     args_pattern: None,
                     categories: categories.clone(),
+                    category: None,
                     created_at: Utc::now(),
                 };
                 match action {
@@ -277,6 +278,7 @@ fn decide_and_record(
                     raw: raw_command.to_string(),
                     created_at: chrono::Utc::now(),
                     path: None,
+                    tunnel: None,
                 };
                 pending.add(&req)?;
                 return Err(Error::ApprovalRequired {

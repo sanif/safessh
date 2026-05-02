@@ -134,6 +134,7 @@ pub fn decide_file_op(
                 raw: format!("{} {}", kind.category(), path),
                 created_at: chrono::Utc::now(),
                 path: Some(path.to_string()),
+                tunnel: None,
             };
             PendingStore::new(paths).add(&req)?;
         }

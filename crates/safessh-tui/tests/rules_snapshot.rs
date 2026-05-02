@@ -42,6 +42,7 @@ fn pattern(rule_id: &str) -> PatternRule {
         flags: vec!["-rf".into()],
         args_pattern: None,
         categories: vec!["destructive:filesystem".into()],
+        category: None,
         created_at: Utc::now(),
     }
 }
