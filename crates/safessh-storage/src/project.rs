@@ -61,6 +61,24 @@ pub struct Policy {
     pub require_approval: Vec<String>,
     #[serde(default)]
     pub deny: Vec<String>,
+    #[serde(default)]
+    pub file_rules: Vec<FileRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FileRule {
+    pub category: String,
+    pub paths: Vec<String>,
+    pub decision: FileDecision,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileDecision {
+    Allow,
+    Approve,
+    Deny,
+    Block,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
