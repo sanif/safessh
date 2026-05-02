@@ -15,11 +15,13 @@ use safessh_core::error::{Error, Result};
 use safessh_core::tunnel::TunnelSpec;
 use safessh_storage::project::Target;
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use tokio::sync::Notify;
 
 pub struct MockTunnelHandle {
     pid: i32,
     killed: std::sync::atomic::AtomicBool,
+    notify: Arc<Notify>,
 }
 
 #[async_trait]
@@ -28,6 +30,8 @@ impl TunnelHandle for MockTunnelHandle {
         self.pid
     }
     async fn wait(&mut self) -> Result<TunnelExit> {
+        // Block until kill() notifies us, simulating a long-running ssh process.
+        self.notify.notified().await;
         if self.killed.load(std::sync::atomic::Ordering::Relaxed) {
             Ok(TunnelExit::Killed)
         } else {
@@ -36,6 +40,7 @@ impl TunnelHandle for MockTunnelHandle {
     }
     async fn kill(&mut self) -> Result<()> {
         self.killed.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.notify.notify_one();
         Ok(())
     }
 }
@@ -188,6 +193,7 @@ impl SshDriver for MockDriver {
         Ok(Box::new(MockTunnelHandle {
             pid,
             killed: std::sync::atomic::AtomicBool::new(false),
+            notify: Arc::new(Notify::new()),
         }))
     }
 }
