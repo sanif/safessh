@@ -7,7 +7,7 @@
 //! is killed and `truncated` is flagged on the returned `ExecResult`.
 
 use crate::control_master;
-use crate::driver::{ExecResult, OutputChunk, SshDriver};
+use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver};
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
 use safessh_storage::project::Target;
@@ -159,5 +159,27 @@ impl SshDriver for OpenSshDriver {
             duration_ms: started.elapsed().as_millis() as u64,
             truncated,
         })
+    }
+
+    async fn read_file(
+        &self,
+        _target: &Target,
+        _path: &str,
+        _cap_bytes: u64,
+    ) -> Result<FileReadResult> {
+        Err(Error::Storage(
+            "read_file: unimplemented in OpenSshDriver until Task 5".into(),
+        ))
+    }
+
+    async fn write_file(
+        &self,
+        _target: &Target,
+        _path: &str,
+        _bytes: &[u8],
+    ) -> Result<FileWriteResult> {
+        Err(Error::Storage(
+            "write_file: unimplemented in OpenSshDriver until Task 6".into(),
+        ))
     }
 }
