@@ -5,6 +5,34 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - YYYY-MM-DD
+
+### Added
+- `safessh <project> [--on <target>] forward <local>:<remote_host>:<remote_port>` —
+  open a port forward (`ssh -L <spec> -N`) under a detached supervisor that
+  enforces the project's `output.tunnel_ttl_minutes` (default 30 min) via
+  SIGTERM → 5s grace → SIGKILL (SAFETY-INVARIANT-8).
+- `safessh tunnels list` — show active tunnels, their forward specs, and
+  remaining TTL minutes; reaps records whose supervisor PID is dead.
+- `safessh tunnels close <id>` — cooperative close (SIGTERM → 5s poll →
+  SIGKILL fallback).
+- `network:tunnel` policy category, default-deny per SAFETY-INVARIANT-15.
+  Can be approved Once / Timed / Always from CLI prompts and the TUI
+  Approvals screen.
+- New `state/tunnels/<id>.toml` store, atomically written
+  (SAFETY-INVARIANT-5).
+- Two new audit event types: `tunnel_open` (with `opacity_warning` field)
+  and `tunnel_close` (with kebab-case `reason`: `ttl-expired`,
+  `user-close`, `ssh-died`, `parent-shutdown`, `failed-to-start`).
+- `SshDriver::open_tunnel(target, spec) -> Box<dyn TunnelHandle>` and a
+  mock `MockTunnelHandle` for unit tests.
+- TUI Approvals screen: tunnel approval variant — Always/Timed/Block actions
+  on `network:tunnel` pendings write category-tagged rules.
+- TUI Audit screen: `tunnel_open` rows carry an `[opaque]` tag.
+- New docs: [`docs/tunnels.md`](docs/tunnels.md). Updated:
+  [`docs/security.md`](docs/security.md), [`docs/policy.md`](docs/policy.md),
+  [`docs/cli-reference.md`](docs/cli-reference.md).
+
 ## [0.3.0] - 2026-05-02
 
 ### Added

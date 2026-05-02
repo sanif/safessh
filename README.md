@@ -2,7 +2,7 @@
 
 A personal CLI proxy for LLM-driven SSH operations. Credentials stay yours; commands get gated.
 
-**Status:** v0.3.0
+**Status:** v0.4.0
 
 `safessh` is a single Rust binary that sits between an LLM agent (Claude Code, AGENTS.md-aware tools) and your servers. The agent gets a fixed CLI surface; you keep the keys, the policy, and the audit trail.
 
@@ -75,7 +75,7 @@ Run `safessh skill check` to verify what's installed and whether it matches the 
 | TUI: projects / approvals / rules / audit screens | Available in v0.2 |
 | Live filesystem watcher (TUI auto-reloads on external edits) | Available in v0.2 |
 | File operations (read / write with path-globs) | Available in v0.3 |
-| Port forwarding | Planned for v0.4 |
+| Port forwarding | Available in v0.4 |
 | SQLite audit index | Planned for v0.5 |
 | Multi-agent skill targets (Cursor, Gemini, Codex) | Planned for v0.6 |
 
@@ -90,6 +90,7 @@ Run `safessh skill check` to verify what's installed and whether it matches the 
 - [docs/security.md](docs/security.md) — threat model and the twelve safety invariants.
 - [docs/policy.md](docs/policy.md) — policy categories, AST matching, `[[policy.file_rules]]`.
 - [docs/files.md](docs/files.md) — file read / write subcommands, path-glob rules, safety invariants 13–14.
+- [docs/tunnels.md](docs/tunnels.md) — port forwarding, TTL, opacity, `network:tunnel` policy.
 - [docs/development.md](docs/development.md) — workspace layout, build, contributing.
 
 ## License
