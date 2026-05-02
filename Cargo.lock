@@ -887,6 +887,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "658bce805d770f407bc62102fca7c2c64ceef2fbcb2b8bd19d2765ce093980de"
 dependencies = [
  "console 0.15.11",
+ "fuzzy-matcher",
  "shell-words",
  "tempfile",
  "thiserror 1.0.69",
@@ -1271,6 +1272,15 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
+]
+
+[[package]]
+name = "fuzzy-matcher"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
+dependencies = [
+ "thread_local",
 ]
 
 [[package]]
@@ -2914,7 +2924,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safessh-audit"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "safessh-core",
@@ -2927,7 +2937,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2959,7 +2969,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "proptest",
@@ -2973,7 +2983,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-policy"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "conch-parser",
@@ -2989,7 +2999,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-skill"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "dirs",
  "insta",
@@ -3002,7 +3012,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-ssh"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3023,7 +3033,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-storage"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "directories",
@@ -3041,7 +3051,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-tui"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "crossterm",

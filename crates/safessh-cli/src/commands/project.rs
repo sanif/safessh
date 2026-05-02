@@ -21,6 +21,27 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             port,
             import_ssh_config,
         } => {
+            let any_flag =
+                alias.is_some() || host.is_some() || user.is_some() || import_ssh_config.is_some();
+            // Interactive entrypoint: no positional name AND no driving flags.
+            // Bare `safessh project add` is the canonical way to create a
+            // project — the flag-based form below stays as a scriptable
+            // shortcut (CI, agents, hand-rolled snippets).
+            if name.is_none() && !any_flag {
+                if !atty::is(atty::Stream::Stdin) {
+                    return Err(Error::Usage(
+                        "interactive `project add` requires a TTY; pass flags or a project name to script it"
+                            .into(),
+                    ));
+                }
+                return crate::commands::interactive::add(&store);
+            }
+            let name = name.ok_or_else(|| {
+                Error::Usage(
+                    "specify a project name (or run `safessh project add` with no args for the interactive flow)"
+                        .into(),
+                )
+            })?;
             let target = if let Some(alias_name) = import_ssh_config {
                 let snap = safessh_storage::ssh_config::SshConfigSnapshot::load(store.paths_ref())?;
                 let entry = snap
@@ -84,7 +105,22 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             }
         }
         ProjectCmd::Edit { name } => {
-            // Verify it exists before launching the editor.
+            // Interactive entrypoint when stdin is a TTY. The legacy
+            // "spawn $EDITOR on the raw TOML" flow is still reachable when
+            // the env var `SAFESSH_EDIT_RAW` is set — handy for power users
+            // who want to bulk-rewrite projects without going through prompts.
+            let raw_edit = std::env::var_os("SAFESSH_EDIT_RAW").is_some();
+            if !raw_edit {
+                if !atty::is(atty::Stream::Stdin) {
+                    return Err(Error::Usage(
+                        "interactive `project edit` requires a TTY; set SAFESSH_EDIT_RAW=1 to spawn $EDITOR on the raw TOML"
+                            .into(),
+                    ));
+                }
+                return crate::commands::interactive::edit(&store, name);
+            }
+            let name = name
+                .ok_or_else(|| Error::Usage("SAFESSH_EDIT_RAW requires a project name".into()))?;
             store.load(&name)?;
             let paths = Paths::user().map_err(Error::Io)?;
             let file = paths.projects_dir().join(format!("{name}.toml"));

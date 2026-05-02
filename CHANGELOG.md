@@ -5,6 +5,45 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-03
+
+### Added
+- Interactive `safessh project add` — running the command with no
+  positional name and no flags now starts a guided flow built on
+  `dialoguer` 0.11. Walks the user through name validation, target
+  source (ssh-config alias vs inline), alias mode (reference at exec
+  time vs snapshot now), inline host/user/port, optional private-key
+  selection (fuzzy-pick from `~/.ssh/` or paste a path), and optional
+  ProxyJump. Prints the resulting TOML preview and asks for confirmation
+  before writing. The flag-based form (`safessh project add <name>
+  --alias|--host/--user|--import-ssh-config ...`) keeps working
+  unchanged for scripted callers.
+- Interactive `safessh project edit` — running the command with no
+  positional name shows a fuzzy-search picker over existing projects;
+  passing a name skips the picker. Inside the loop the user can add a
+  target, remove a target (refuses if it's the project's
+  `default_target`), change the default target, or toggle policy
+  categories (`allow` / `require_approval` / `deny`) via a multi-select
+  over the shipped category list. Save & exit or discard & exit at any
+  point. The legacy `$EDITOR`-on-raw-TOML flow is reachable via
+  `SAFESSH_EDIT_RAW=1` for bulk hand-edits.
+- README and `docs/projects.md` now lead with the interactive flow as
+  the canonical way to add projects; `docs/cli-reference.md` documents
+  both the interactive and scripted entry points and the
+  `SAFESSH_EDIT_RAW` escape hatch.
+
+### Changed
+- `safessh project add <name>` no longer requires positional arguments
+  (`name` is now `Option<String>`); supplying any of `--alias`,
+  `--host`, `--user`, or `--import-ssh-config` keeps the legacy
+  scripted flow. Without flags AND without a TTY (CI / piped stdin /
+  `assert_cmd`), the command refuses with exit 2 and a message
+  pointing at the flag-based path — preventing silent hangs on
+  `read_line` against EOF.
+- `safessh project edit <name>` likewise no longer requires
+  `<name>` and is interactive by default. In raw-mode
+  (`SAFESSH_EDIT_RAW=1`), `<name>` is still required.
+
 ## [0.4.1] - 2026-05-03
 
 ### Fixed

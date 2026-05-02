@@ -89,7 +89,8 @@ pub enum TunnelsCmd {
 #[derive(Subcommand, Debug)]
 pub enum ProjectCmd {
     Add {
-        name: String,
+        /// Project name. Omit to start an interactive flow when stdin is a TTY.
+        name: Option<String>,
         #[arg(long)]
         alias: Option<String>,
         #[arg(long)]
@@ -109,7 +110,8 @@ pub enum ProjectCmd {
     },
     List,
     Edit {
-        name: String,
+        /// Project to edit. Omit to pick interactively when stdin is a TTY.
+        name: Option<String>,
     },
     Remove {
         name: String,
