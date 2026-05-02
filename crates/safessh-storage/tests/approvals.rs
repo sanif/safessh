@@ -28,6 +28,7 @@ fn sample_pattern(rule_id: &str) -> PatternRule {
         flags: vec!["-rf".into()],
         args_pattern: None,
         categories: vec!["destructive:filesystem".into()],
+        category: None,
         created_at: Utc::now(),
     }
 }
@@ -113,6 +114,7 @@ fn pending_add_take_roundtrip() {
         raw: "rm -rf /tmp/foo".into(),
         created_at: Utc::now(),
         path: None,
+        tunnel: None,
     };
 
     store.add(&request).unwrap();
@@ -152,6 +154,7 @@ fn pending_cleanup_expired_removes_old() {
             raw: "ls".into(),
             created_at: Utc::now() - Duration::hours(48),
             path: None,
+            tunnel: None,
         })
         .unwrap();
     store
@@ -163,6 +166,7 @@ fn pending_cleanup_expired_removes_old() {
             raw: "ls".into(),
             created_at: Utc::now(),
             path: None,
+            tunnel: None,
         })
         .unwrap();
 

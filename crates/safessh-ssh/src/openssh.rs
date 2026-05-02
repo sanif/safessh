@@ -7,14 +7,17 @@
 //! is killed and `truncated` is flagged on the returned `ExecResult`.
 
 use crate::control_master;
-use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver};
+use crate::driver::{
+    ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle,
+};
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
+use safessh_core::tunnel::TunnelSpec;
 use safessh_storage::project::Target;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 
 /// Driver that exec's the system `ssh` binary with ControlMaster opts.
 pub struct OpenSshDriver {
@@ -426,5 +429,128 @@ impl SshDriver for OpenSshDriver {
             canonical_path: path.to_string(),
             bytes_written: bytes.len() as u64,
         })
+    }
+
+    async fn open_tunnel(
+        &self,
+        target: &Target,
+        spec: &TunnelSpec,
+    ) -> Result<Box<dyn TunnelHandle>> {
+        let mut argv: Vec<String> = vec!["ssh".into()];
+        argv.extend(control_master::argv_options(&self.control_dir));
+        argv.push("-L".into());
+        argv.push(format!(
+            "{}:{}:{}",
+            spec.local_port, spec.remote_host, spec.remote_port
+        ));
+        argv.push("-N".into());
+        match target {
+            Target::SshConfigAlias {
+                ssh_config_alias, ..
+            } => argv.push(ssh_config_alias.clone()),
+            Target::Inline {
+                host,
+                port,
+                user,
+                identity_file,
+                proxy_jump,
+                ..
+            } => {
+                argv.push("-p".into());
+                argv.push(port.to_string());
+                if let Some(idf) = identity_file {
+                    argv.push("-i".into());
+                    argv.push(idf.display().to_string());
+                }
+                if let Some(pj) = proxy_jump {
+                    argv.push("-J".into());
+                    argv.push(pj.clone());
+                }
+                argv.push(format!("{user}@{host}"));
+            }
+        }
+
+        let mut cmd = Command::new(&argv[0]);
+        cmd.args(&argv[1..])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped());
+        let child = cmd
+            .spawn()
+            .map_err(|e| Error::Ssh(format!("spawn ssh -L: {e}")))?;
+        let pid = child.id().map(|p| p as i32).unwrap_or(-1);
+
+        // Brief readiness wait: poll the local port for ~250ms so we
+        // surface immediate failures (auth refused, port busy) before
+        // the supervisor commits a tunnel record. If nothing connects
+        // in the window we still return Ok — the supervisor will
+        // observe a natural exit if ssh dies later.
+        let local_port = spec.local_port;
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(250), async {
+            loop {
+                if tokio::net::TcpStream::connect(("127.0.0.1", local_port))
+                    .await
+                    .is_ok()
+                {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            }
+        })
+        .await;
+
+        Ok(Box::new(OpenSshTunnelHandle {
+            pid,
+            child: Some(child),
+        }))
+    }
+}
+
+pub struct OpenSshTunnelHandle {
+    pid: i32,
+    child: Option<Child>,
+}
+
+#[async_trait]
+impl TunnelHandle for OpenSshTunnelHandle {
+    fn ssh_pid(&self) -> i32 {
+        self.pid
+    }
+
+    async fn wait(&mut self) -> Result<TunnelExit> {
+        let Some(mut child) = self.child.take() else {
+            // Already waited / killed.
+            return Ok(TunnelExit::Killed);
+        };
+        let status = child
+            .wait()
+            .await
+            .map_err(|e| Error::Ssh(format!("ssh -L wait: {e}")))?;
+        // Tokio doesn't surface "killed by signal" cleanly across platforms,
+        // so we treat code-less exit as Killed; everything else as Natural.
+        match status.code() {
+            Some(c) => Ok(TunnelExit::Natural(c)),
+            None => Ok(TunnelExit::Killed),
+        }
+    }
+
+    async fn kill(&mut self) -> Result<()> {
+        if let Some(child) = self.child.as_mut() {
+            // Tokio's `Child::kill()` sends SIGKILL on Unix, which is too
+            // harsh for a polite tunnel close. Send SIGTERM via nix and
+            // give ssh a moment to clean up its ControlMaster registration.
+            #[cfg(unix)]
+            {
+                use nix::sys::signal::{kill as sig_kill, Signal};
+                use nix::unistd::Pid;
+                let _ = sig_kill(Pid::from_raw(self.pid), Signal::SIGTERM);
+            }
+            // Then, after a 5s grace, fall through to the OS reap below.
+            let _ = tokio::time::timeout(std::time::Duration::from_secs(5), child.wait()).await;
+            let _ = child.start_kill();
+            let _ = child.wait().await;
+        }
+        self.child = None;
+        Ok(())
     }
 }

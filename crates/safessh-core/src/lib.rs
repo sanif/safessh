@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod redactor;
+pub mod tunnel;
 pub mod types;
 
 pub use error::{Error, Result};

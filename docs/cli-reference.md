@@ -1,6 +1,6 @@
 # CLI reference
 
-Everything the `safessh` binary exposes through v0.3. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
+Everything the `safessh` binary exposes through v0.4. Run `safessh --help` for the live help text — this page exists to be readable as documentation and to list things `--help` doesn't show (exit codes, output framing).
 
 ## Global flags
 
@@ -86,6 +86,45 @@ echo "hello" | safessh prod write /tmp/hello.txt
 Path matching follows the same precedence as `read`: preset deny-list → `[[policy.file_rules]]` → `RequireApproval`. The preset deny-list blocks writes to sensitive paths regardless of project config (SAFETY-INVARIANT-14).
 
 **Exit codes:** same table as `exec` — see [Exit codes](#exit-codes).
+
+## `safessh <project> [--on <target>] forward <spec>`
+
+Open a local port forward (`ssh -L <spec> -N`) under a detached supervisor. The CLI exits immediately; the supervisor enforces the project's TTL and writes a `tunnel_close` audit event when it terminates.
+
+**Usage:**
+
+```sh
+safessh <project> forward <local_port>:<remote_host>:<remote_port>
+safessh <project> --on <target> forward <local_port>:<remote_host>:<remote_port>
+```
+
+**Example:**
+
+```sh
+safessh prod forward 5432:db.internal:5432
+safessh prod --on db forward 15432:localhost:5432
+```
+
+**Output (success):**
+
+```
+tunnel open id=ab3fzc9p spec=5432:db.internal:5432 ttl=30min expires=2026-05-02T14:00:00Z
+```
+
+Policy gate: the operation is classified as `network:tunnel`, which is default-deny (SAFETY-INVARIANT-15). See [docs/tunnels.md](tunnels.md) for TTL settings, opacity notes, and troubleshooting.
+
+**Exit codes:**
+
+| Code | Meaning |
+|---:|---|
+| `0` | Tunnel open, supervisor running. |
+| `2` | Bad spec format or out-of-range port. |
+| `10` | Approval required. |
+| `11` | Persistently blocked. |
+| `12` | Denied. |
+| `20` | SSH failure (auth error, host unreachable). |
+| `40` | Storage error. |
+| `50` | Audit-write failure. |
 
 ## `safessh project add <name> [flags]`
 
@@ -226,6 +265,47 @@ safessh audit query --project prod
 safessh audit query --type approval_requested
 safessh audit query --grep "destructive:db"
 ```
+
+## `safessh tunnels list`
+
+List all tunnels whose supervisor process is still alive, and reap stale records for supervisors that have already exited.
+
+**Usage:**
+
+```sh
+safessh tunnels list
+```
+
+**Output:**
+
+```
+ID        PROJECT  TARGET   SPEC                          OPENED               TTL
+ab3fzc9p  prod     default  5432:db.internal:5432         2026-05-02T13:30:00Z 24min
+r7qm4ws2  staging  db       15432:localhost:5432           2026-05-02T13:45:00Z 9min
+```
+
+Prints nothing (exit 0) if no active tunnels exist. `40` on storage error.
+
+## `safessh tunnels close <id>`
+
+Cooperatively shut down a running tunnel: SIGTERM → 5-second poll → SIGKILL fallback. Writes a `tunnel_close` audit event with `reason: user-close`.
+
+**Usage:**
+
+```sh
+safessh tunnels close <id>
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|---:|---|
+| `0` | Tunnel closed. |
+| `1` | Tunnel ID not found. |
+| `40` | Storage error. |
+| `50` | Audit-write failure. |
+
+See [docs/tunnels.md](tunnels.md) for the full tunnel lifecycle.
 
 ## `safessh skill install --target <target> [flags]`
 

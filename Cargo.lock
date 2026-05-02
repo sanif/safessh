@@ -2072,6 +2072,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "memoffset 0.7.1",
+ "pin-utils",
 ]
 
 [[package]]
@@ -2368,6 +2369,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
+name = "pin-utils"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
 name = "piper"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2419,6 +2426,15 @@ name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
+
+[[package]]
+name = "portpicker"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be97d76faf1bfab666e1375477b23fde79eccf0276e9b63b92a39d676a889ba9"
+dependencies = [
+ "rand 0.8.6",
+]
 
 [[package]]
 name = "potential_utf"
@@ -2898,7 +2914,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safessh-audit"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "safessh-core",
@@ -2911,7 +2927,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2919,6 +2935,7 @@ dependencies = [
  "chrono",
  "clap",
  "dialoguer",
+ "nix",
  "predicates",
  "safessh-audit",
  "safessh-core",
@@ -2934,13 +2951,15 @@ dependencies = [
  "testcontainers",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
 name = "safessh-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -2949,11 +2968,12 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "toml",
 ]
 
 [[package]]
 name = "safessh-policy"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "conch-parser",
@@ -2969,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-skill"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dirs",
  "insta",
@@ -2982,11 +3002,15 @@ dependencies = [
 
 [[package]]
 name = "safessh-ssh"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "futures",
+ "nix",
+ "portpicker",
  "rand 0.8.6",
+ "safessh-cli",
  "safessh-core",
  "safessh-storage",
  "serde",
@@ -2994,17 +3018,19 @@ dependencies = [
  "testcontainers",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
 name = "safessh-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "directories",
  "filetime",
  "fs2",
  "keyring",
+ "nix",
  "safessh-core",
  "serde",
  "ssh2-config",
@@ -3015,7 +3041,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-tui"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "crossterm",

@@ -54,6 +54,18 @@ credentials.
 - `safessh approve <token>` — approve a previously-blocked command using
   the token printed by `exec`. The user typically runs this; only run it
   if the user explicitly tells you to.
+- `safessh <project> [--on <target>] forward <local>:<remote_host>:<remote_port>` —
+  open a port forward to a remote host reachable from the project's target.
+  Default-deny: every fresh forward triggers an approval prompt unless the
+  project policy explicitly allows `network:tunnel`. Returns immediately
+  with `tunnel open id=<id> on localhost:<local_port> (max <ttl> min)`;
+  the tunnel runs under a detached supervisor that closes it at TTL or
+  on `safessh tunnels close <id>`.
+- `safessh tunnels list` — show currently-active tunnels (id, project,
+  target, forward spec, minutes remaining). Reaps records whose
+  supervisor is no longer alive.
+- `safessh tunnels close <id>` — close an active tunnel cooperatively
+  (SIGTERMs the supervisor; falls back to SIGKILL after 5 s).
 - `safessh policy show <project>` — print the effective policy for a project.
 - `safessh audit query` — query the local audit log of past commands.
 - `safessh skill install|uninstall|check` — manage this skill's installation
@@ -147,3 +159,30 @@ follow-up `read`/`write` succeeds.
 `--yolo`.** It defeats the entire point of the proxy and is intended only for
 the user to use in tightly-scoped, interactive break-glass scenarios. If a
 command is being blocked, surface the block and let the user decide.
+
+## Port forwarding
+
+```
+safessh <project> [--on <target>] forward <local>:<remote_host>:<remote_port>
+```
+
+Opens an ssh `-L` port forward in the background. The local end listens
+on `localhost:<local_port>`; traffic is tunneled to `<remote_host>:<remote_port>`
+as resolved by the SSH server.
+
+- **Default-deny.** Category `network:tunnel` is gated by default. The
+  first forward to any project triggers a `BLOCKED:` token; the user
+  approves once / timed / always before tunnels open without prompting.
+- **TTL is hard.** Tunnels are killed at `output.tunnel_ttl_minutes`
+  (default 30 min) — SIGTERM, then SIGKILL after 5 s. There is no
+  "permanent" tunnel.
+- **tunnel traffic is opaque to safessh.** Once the tunnel is up,
+  arbitrary bytes flow through it. safessh logs `tunnel_open` and
+  `tunnel_close` events with the spec, but **not** payload contents.
+  When you suggest the user open a tunnel, surface this opacity to them.
+- **Don't pipe through safessh.** Once a tunnel is up, normal client
+  tools talk directly to `localhost:<local_port>`. Don't try to rewrap
+  the traffic in another `safessh exec`.
+- **Close when done.** `safessh tunnels close <id>` ends the forward
+  and writes a `tunnel_close` audit event with reason `user-close`.
+  Always close before suggesting the user dismiss the session.

@@ -40,6 +40,23 @@ pub struct FileWriteResult {
     pub bytes_written: u64,
 }
 
+/// Opaque handle to an open tunnel. Implementations decide what `ssh_pid`
+/// means (real OS pid for `OpenSshDriver`; synthetic counter for the mock).
+#[async_trait]
+pub trait TunnelHandle: Send {
+    fn ssh_pid(&self) -> i32;
+    async fn wait(&mut self) -> Result<TunnelExit>;
+    async fn kill(&mut self) -> Result<()>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TunnelExit {
+    /// ssh exited cleanly on its own (server side closed, network drop).
+    Natural(i32),
+    /// `kill()` was called and the child terminated as a result.
+    Killed,
+}
+
 /// Abstraction over "run a command on a target and stream its output".
 ///
 /// Implementations are expected to be cheap to clone or share via `Arc`. The
@@ -71,4 +88,10 @@ pub trait SshDriver: Send + Sync {
         path: &str,
         bytes: &[u8],
     ) -> Result<FileWriteResult>;
+
+    async fn open_tunnel(
+        &self,
+        target: &Target,
+        spec: &safessh_core::tunnel::TunnelSpec,
+    ) -> Result<Box<dyn TunnelHandle>>;
 }

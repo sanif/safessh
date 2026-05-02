@@ -56,6 +56,28 @@ deny             = ["destructive:disk", "system:control"]
 
 Unlisted categories fall through to the default `RequireApproval`.
 
+### `network:tunnel` category
+
+Port forwards (`safessh <project> forward <spec>`) are classified as `network:tunnel`. This category is default-deny (SAFETY-INVARIANT-15) — it does not appear in any project's implicit allow list and cannot be unlocked by a wildcard allow rule. You must list it explicitly:
+
+```toml
+[policy]
+allow            = ["read:safe", "file:read", "network:tunnel"]
+require_approval = ["file:write"]
+deny             = ["destructive:disk", "destructive:db"]
+```
+
+Or gate each forward on an approval:
+
+```toml
+[policy]
+allow            = ["read:safe", "file:read"]
+require_approval = ["file:write", "network:tunnel"]
+deny             = ["destructive:disk", "destructive:db"]
+```
+
+See [`docs/tunnels.md`](tunnels.md) for the full forward workflow, TTL semantics, and approval flow.
+
 Categories absent from `allow`, `require_approval`, and `deny` all inherit the default described above. You do not need to list every category — only override what you need.
 
 ## File rules

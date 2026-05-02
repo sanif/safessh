@@ -65,6 +65,25 @@ pub enum TopCmd {
 
     /// Launch the TUI (v0.2 - placeholder in v0.1)
     Tui,
+
+    /// Manage active port forwards
+    Tunnels {
+        #[command(subcommand)]
+        cmd: TunnelsCmd,
+    },
+
+    /// Hidden subcommand: supervisor process for an open tunnel.
+    /// Spawned by `forward::spawn_supervisor_process`; not user-facing.
+    #[command(name = "__tunnel-supervisor", hide = true)]
+    TunnelSupervisor { record_path: std::path::PathBuf },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TunnelsCmd {
+    /// List active tunnels (reaps dead supervisors first).
+    List,
+    /// Close a tunnel by id.
+    Close { id: String },
 }
 
 #[derive(Subcommand, Debug)]

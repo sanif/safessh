@@ -42,6 +42,10 @@ impl Paths {
         self.state.join("approvals")
     }
 
+    pub fn tunnels_dir(&self) -> PathBuf {
+        self.state.join("tunnels")
+    }
+
     pub fn audit_log(&self) -> PathBuf {
         self.state.join("audit.log")
     }
@@ -64,6 +68,7 @@ impl Paths {
         std::fs::create_dir_all(self.approvals_dir().join("timed"))?;
         std::fs::create_dir_all(self.approvals_dir().join("always"))?;
         std::fs::create_dir_all(self.approvals_dir().join("blocked"))?;
+        std::fs::create_dir_all(self.tunnels_dir())?;
         Ok(())
     }
 }

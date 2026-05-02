@@ -28,6 +28,20 @@ pub enum FileOp<'a> {
     Write(&'a str),
 }
 
+/// Discriminator for tunnel ops. Like `FileOp`, `None` means the input is
+/// an exec / file command (existing path).
+#[derive(Debug, Clone, Copy)]
+pub enum TunnelOp<'a> {
+    None,
+    Forward(&'a str),
+}
+
+impl<'a> TunnelOp<'a> {
+    fn is_forward(&self) -> bool {
+        matches!(self, TunnelOp::Forward(_))
+    }
+}
+
 impl<'a> FileOp<'a> {
     fn category(&self) -> Option<&'static str> {
         match self {
@@ -52,9 +66,17 @@ pub struct DecisionInput<'a> {
     pub blocks: &'a [PatternRule],
     pub file_op: FileOp<'a>,
     pub preset_file_rules: &'a [FileRule],
+    pub tunnel_op: TunnelOp<'a>,
 }
 
 pub fn decide(input: DecisionInput<'_>) -> (PolicyDecision, Option<ParsedCommand>) {
+    if input.tunnel_op.is_forward() {
+        return (
+            decide_tunnel(input.policy, input.allows, input.timed, input.blocks),
+            None,
+        );
+    }
+
     // File operations short-circuit the AST parser entirely.
     if let (Some(category), Some(path)) = (input.file_op.category(), input.file_op.path()) {
         return (
@@ -179,6 +201,59 @@ fn decide_file(
         token: ApprovalToken::generate(),
         categories: vec![category.into()],
         reason: format!("requires approval for category: {category}"),
+    }
+}
+
+fn decide_tunnel(
+    policy: &Policy,
+    allows: &[PatternRule],
+    timed: &[TimedRule],
+    blocks: &[PatternRule],
+) -> PolicyDecision {
+    const CAT: &str = "network:tunnel";
+
+    // SAFETY-INVARIANT-2: block-list checked BEFORE allow-list.
+    if let Some(rule) = blocks.iter().find(|r| r.category.as_deref() == Some(CAT)) {
+        return PolicyDecision::Block {
+            rule_id: rule.rule_id.clone(),
+            pattern: format!("category {CAT}"),
+        };
+    }
+    if policy.deny.iter().any(|c| c == CAT) {
+        return PolicyDecision::Deny {
+            reason: format!("project denies category {CAT}"),
+        };
+    }
+    if let Some(rule) = timed
+        .iter()
+        .find(|r| r.pattern.category.as_deref() == Some(CAT))
+    {
+        return PolicyDecision::Allow {
+            matched_rule: Some(rule.pattern.rule_id.clone()),
+            source: AllowSource::TimedRule {
+                rule_id: rule.pattern.rule_id.clone(),
+                expires_at: rule.expires_at,
+            },
+        };
+    }
+    if let Some(rule) = allows.iter().find(|r| r.category.as_deref() == Some(CAT)) {
+        return PolicyDecision::Allow {
+            matched_rule: Some(rule.rule_id.clone()),
+            source: AllowSource::AlwaysRule(rule.rule_id.clone()),
+        };
+    }
+    if policy.allow.iter().any(|c| c == CAT) && !policy.require_approval.iter().any(|c| c == CAT) {
+        return PolicyDecision::Allow {
+            matched_rule: None,
+            source: AllowSource::DefaultPolicy,
+        };
+    }
+    // SAFETY-INVARIANT-15: network:tunnel is default-deny — fall through
+    // to RequireApproval when no rule matched.
+    PolicyDecision::RequireApproval {
+        token: ApprovalToken::generate(),
+        categories: vec![CAT.into()],
+        reason: format!("requires approval for category: {CAT}"),
     }
 }
 

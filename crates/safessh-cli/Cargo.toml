@@ -35,6 +35,9 @@ dialoguer       = "0.11"
 sha2            = "0.10"
 tracing         = { workspace = true }
 tracing-subscriber = { workspace = true }
+tokio-util          = "0.7"
+nix                 = { version = "0.26", features = ["process"] }
+toml                = { workspace = true }
 
 [dev-dependencies]
 assert_cmd      = "2"
