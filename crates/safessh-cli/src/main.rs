@@ -96,6 +96,11 @@ async fn main() {
                 errors::report_and_exit(e);
             }
         }
+        cli::TopCmd::Tunnels { cmd } => {
+            if let Err(e) = commands::tunnels::run(cmd) {
+                errors::report_and_exit(e);
+            }
+        }
         cli::TopCmd::TunnelSupervisor { record_path } => {
             if let Err(e) = commands::forward::run_supervisor(record_path).await {
                 errors::report_and_exit(e);
