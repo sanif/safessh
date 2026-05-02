@@ -129,6 +129,68 @@ impl ApprovalsScreen {
         Ok(())
     }
 
+    /// Apply a picker action to the currently selected pending request.
+    ///
+    /// Extends `apply_to_selected` with a tunnel branch: when the selected
+    /// pending has `tunnel: Some(spec)`, writes a `PatternRule` /
+    /// `TimedRule` whose `category = Some("network:tunnel")` so the
+    /// `decide_tunnel` policy path picks it up on the next request.
+    pub fn apply_action(&mut self, action: PickerAction) -> Result<()> {
+        let req = self
+            .pending
+            .get(self.selected)
+            .ok_or_else(|| Error::Usage("nothing selected".into()))?
+            .clone();
+
+        if req.tunnel.is_some() {
+            // SAFETY-INVARIANT-12: atomic store writes via storage API.
+            let pending = PendingStore::new(&self.paths);
+            let _ = pending.take(&ApprovalToken::from_str(&req.token));
+            self.apply_tunnel_action(&req, action)?;
+            self.picker_open = false;
+            self.reload()?;
+            Ok(())
+        } else {
+            // Non-tunnel: delegate to the existing handler which covers file
+            // and exec branches without modification.
+            self.apply_to_selected(action)
+        }
+    }
+
+    /// Handle actions for tunnel approvals — writes `PatternRule` /
+    /// `TimedRule` with `category = Some("network:tunnel")`.
+    fn apply_tunnel_action(&self, req: &PendingRequest, action: PickerAction) -> Result<()> {
+        let pattern = PatternRule {
+            rule_id: format!("tunnel-{}", Utc::now().timestamp_millis()),
+            binary: "@network:tunnel".into(),
+            flags: vec![],
+            args_pattern: None,
+            categories: vec!["network:tunnel".into()],
+            category: Some("network:tunnel".into()),
+            created_at: Utc::now(),
+        };
+        match action {
+            PickerAction::Once => {}
+            PickerAction::Timed(min) => {
+                TimedStore::new(&self.paths).add(
+                    &req.project,
+                    TimedRule {
+                        pattern,
+                        expires_at: Utc::now() + Duration::minutes(min as i64),
+                    },
+                )?;
+            }
+            PickerAction::Always => {
+                AlwaysStore::new(&self.paths).add(&req.project, pattern)?;
+            }
+            PickerAction::Deny => {}
+            PickerAction::Block => {
+                BlockedStore::new(&self.paths).add(&req.project, pattern)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Handle "Always allow" for a file-op approval by writing a `FileRule`
     /// to `project.policy.file_rules` and saving the project.
     fn apply_file_op_action(&self, req: &PendingRequest, action: PickerAction) -> Result<()> {
@@ -219,7 +281,16 @@ impl ApprovalsScreen {
                 } else {
                     format!("{}h ago", age.num_hours())
                 };
-                if is_file_op(r) {
+                if let Some(spec) = &r.tunnel {
+                    // Tunnel row: <token> <project> "tunnel <spec>" <categories>
+                    Row::new(vec![
+                        r.token.clone(),
+                        r.project.clone(),
+                        format!("tunnel {spec}"),
+                        r.categories.join(","),
+                        age_str,
+                    ])
+                } else if is_file_op(r) {
                     // File-op row: <token> <project> <category> <path>
                     let category = r
                         .categories
