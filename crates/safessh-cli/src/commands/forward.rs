@@ -22,7 +22,9 @@ use safessh_core::types::{ParsedCommand, PolicyDecision};
 use safessh_policy::decision::{decide, DecisionInput, FileOp, TunnelOp};
 use safessh_ssh::driver::SshDriver;
 use safessh_ssh::openssh::OpenSshDriver;
-use safessh_storage::approvals::{AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore};
+use safessh_storage::approvals::{
+    AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore,
+};
 use safessh_storage::paths::Paths;
 use safessh_storage::policies::preset_file_rules;
 use safessh_storage::project::ProjectStore;
@@ -157,9 +159,7 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<()> {
         opened_at,
         expires_at,
     };
-    let state_path = paths
-        .tunnels_dir()
-        .join(format!("{}.toml", id.as_str()));
+    let state_path = paths.tunnels_dir().join(format!("{}.toml", id.as_str()));
     TunnelStore::new(&paths).add(&record)?;
 
     // SAFETY-INVARIANT-4: audit write before any user-visible output.
@@ -273,8 +273,7 @@ pub async fn run_supervisor(record_path: std::path::PathBuf) -> Result<()> {
 #[cfg(unix)]
 fn install_sigterm(cancel: tokio_util::sync::CancellationToken) {
     tokio::spawn(async move {
-        if let Ok(mut s) =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        if let Ok(mut s) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
         {
             if s.recv().await.is_some() {
                 cancel.cancel();

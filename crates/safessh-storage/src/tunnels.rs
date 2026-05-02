@@ -70,8 +70,7 @@ impl TunnelStore {
         let path = self.dir.join(format!("{}.toml", id.as_str()));
         let raw = std::fs::read_to_string(&path)
             .map_err(|_| Error::Storage(format!("no such tunnel: {}", id.as_str())))?;
-        let rec: TunnelRecord =
-            toml::from_str(&raw).map_err(|e| Error::Storage(e.to_string()))?;
+        let rec: TunnelRecord = toml::from_str(&raw).map_err(|e| Error::Storage(e.to_string()))?;
         std::fs::remove_file(&path).ok();
         Ok(rec)
     }

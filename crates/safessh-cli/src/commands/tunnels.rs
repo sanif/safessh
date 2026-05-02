@@ -53,9 +53,9 @@ pub fn run(cmd: TunnelsCmd) -> Result<()> {
         }
         TunnelsCmd::Close { id } => {
             let id = TunnelId::from_str(&id);
-            let rec = store
-                .get(&id)?
-                .ok_or_else(|| Error::ProjectNotFound(format!("no such tunnel: {}", id.as_str())))?;
+            let rec = store.get(&id)?.ok_or_else(|| {
+                Error::ProjectNotFound(format!("no such tunnel: {}", id.as_str()))
+            })?;
             #[cfg(unix)]
             {
                 use nix::sys::signal::{kill, Signal};
@@ -88,7 +88,10 @@ pub fn run(cmd: TunnelsCmd) -> Result<()> {
                 duration,
             ))?;
             let _ = store.remove(&id);
-            println!("force-closed tunnel {} (supervisor unresponsive)", id.as_str());
+            println!(
+                "force-closed tunnel {} (supervisor unresponsive)",
+                id.as_str()
+            );
             Ok(())
         }
     }

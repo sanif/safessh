@@ -75,9 +75,7 @@ pub enum TopCmd {
     /// Hidden subcommand: supervisor process for an open tunnel.
     /// Spawned by `forward::spawn_supervisor_process`; not user-facing.
     #[command(name = "__tunnel-supervisor", hide = true)]
-    TunnelSupervisor {
-        record_path: std::path::PathBuf,
-    },
+    TunnelSupervisor { record_path: std::path::PathBuf },
 }
 
 #[derive(Subcommand, Debug)]

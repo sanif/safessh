@@ -30,7 +30,13 @@ fn run(
 
 #[test]
 fn default_policy_requires_approval() {
-    let d = run(TunnelOp::Forward("5432:db:5432"), &empty_policy(), &[], &[], &[]);
+    let d = run(
+        TunnelOp::Forward("5432:db:5432"),
+        &empty_policy(),
+        &[],
+        &[],
+        &[],
+    );
     assert!(matches!(d, PolicyDecision::RequireApproval { .. }));
 }
 
@@ -61,7 +67,13 @@ fn always_rule_with_category_returns_allow() {
         category: Some("network:tunnel".into()),
         created_at: Utc::now(),
     };
-    let d = run(TunnelOp::Forward("5432:db:5432"), &empty_policy(), &[rule], &[], &[]);
+    let d = run(
+        TunnelOp::Forward("5432:db:5432"),
+        &empty_policy(),
+        &[rule],
+        &[],
+        &[],
+    );
     match d {
         PolicyDecision::Allow {
             source: AllowSource::AlwaysRule(_),
@@ -82,7 +94,13 @@ fn block_rule_with_category_returns_block() {
         category: Some("network:tunnel".into()),
         created_at: Utc::now(),
     };
-    let d = run(TunnelOp::Forward("5432:db:5432"), &empty_policy(), &[], &[], &[rule]);
+    let d = run(
+        TunnelOp::Forward("5432:db:5432"),
+        &empty_policy(),
+        &[],
+        &[],
+        &[rule],
+    );
     assert!(matches!(d, PolicyDecision::Block { .. }));
 }
 
@@ -100,7 +118,13 @@ fn timed_rule_with_category_returns_allow() {
         },
         expires_at: Utc::now() + Duration::minutes(15),
     };
-    let d = run(TunnelOp::Forward("5432:db:5432"), &empty_policy(), &[], &[rule], &[]);
+    let d = run(
+        TunnelOp::Forward("5432:db:5432"),
+        &empty_policy(),
+        &[],
+        &[rule],
+        &[],
+    );
     match d {
         PolicyDecision::Allow {
             source: AllowSource::TimedRule { .. },

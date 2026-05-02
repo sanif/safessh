@@ -23,7 +23,9 @@ fn parses_full_spec() {
 #[test]
 fn rejects_two_part_spec() {
     let err = TunnelSpec::parse("5432:db.internal").unwrap_err();
-    assert!(err.to_string().contains("local_port:remote_host:remote_port"));
+    assert!(err
+        .to_string()
+        .contains("local_port:remote_host:remote_port"));
 }
 
 #[test]

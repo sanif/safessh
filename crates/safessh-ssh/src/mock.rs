@@ -9,7 +9,9 @@
 //! The file-map methods (`put_file`, `read_file`, `write_file`) use an
 //! in-memory `BTreeMap` keyed by `(target_name, path)`.
 
-use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle};
+use crate::driver::{
+    ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle,
+};
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
 use safessh_core::tunnel::TunnelSpec;
@@ -39,7 +41,8 @@ impl TunnelHandle for MockTunnelHandle {
         }
     }
     async fn kill(&mut self) -> Result<()> {
-        self.killed.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.killed
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         self.notify.notify_one();
         Ok(())
     }

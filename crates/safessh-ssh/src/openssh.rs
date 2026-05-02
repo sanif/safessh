@@ -7,7 +7,9 @@
 //! is killed and `truncated` is flagged on the returned `ExecResult`.
 
 use crate::control_master;
-use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle};
+use crate::driver::{
+    ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle,
+};
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
 use safessh_core::tunnel::TunnelSpec;
@@ -437,10 +439,15 @@ impl SshDriver for OpenSshDriver {
         let mut argv: Vec<String> = vec!["ssh".into()];
         argv.extend(control_master::argv_options(&self.control_dir));
         argv.push("-L".into());
-        argv.push(format!("{}:{}:{}", spec.local_port, spec.remote_host, spec.remote_port));
+        argv.push(format!(
+            "{}:{}:{}",
+            spec.local_port, spec.remote_host, spec.remote_port
+        ));
         argv.push("-N".into());
         match target {
-            Target::SshConfigAlias { ssh_config_alias, .. } => argv.push(ssh_config_alias.clone()),
+            Target::SshConfigAlias {
+                ssh_config_alias, ..
+            } => argv.push(ssh_config_alias.clone()),
             Target::Inline {
                 host,
                 port,

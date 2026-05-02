@@ -210,7 +210,10 @@ async fn forward_then_close_blocks_traffic() {
             }
         }
     };
-    assert!(connected, "tunnel never opened: local port {local_port} not reachable");
+    assert!(
+        connected,
+        "tunnel never opened: local port {local_port} not reachable"
+    );
 
     handle.kill().await.expect("kill tunnel handle");
     let _ = handle.wait().await;
@@ -228,7 +231,10 @@ async fn forward_then_close_blocks_traffic() {
         }
         tokio::time::sleep(StdDuration::from_millis(100)).await;
     }
-    assert!(refused, "tunnel kept accepting connections after kill on port {local_port}");
+    assert!(
+        refused,
+        "tunnel kept accepting connections after kill on port {local_port}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -265,10 +271,7 @@ async fn ttl_expired_closes_tunnel() {
     let local_port = portpicker::pick_unused_port().expect("pick local port");
     let spec = TunnelSpec::parse(&format!("{local_port}:127.0.0.1:22")).unwrap();
 
-    let handle = drv
-        .open_tunnel(&target, &spec)
-        .await
-        .expect("open_tunnel");
+    let handle = drv.open_tunnel(&target, &spec).await.expect("open_tunnel");
 
     let now = Utc::now();
     let rec = TunnelRecord {

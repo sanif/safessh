@@ -71,7 +71,10 @@ pub struct DecisionInput<'a> {
 
 pub fn decide(input: DecisionInput<'_>) -> (PolicyDecision, Option<ParsedCommand>) {
     if input.tunnel_op.is_forward() {
-        return (decide_tunnel(input.policy, input.allows, input.timed, input.blocks), None);
+        return (
+            decide_tunnel(input.policy, input.allows, input.timed, input.blocks),
+            None,
+        );
     }
 
     // File operations short-circuit the AST parser entirely.
@@ -239,9 +242,7 @@ fn decide_tunnel(
             source: AllowSource::AlwaysRule(rule.rule_id.clone()),
         };
     }
-    if policy.allow.iter().any(|c| c == CAT)
-        && !policy.require_approval.iter().any(|c| c == CAT)
-    {
+    if policy.allow.iter().any(|c| c == CAT) && !policy.require_approval.iter().any(|c| c == CAT) {
         return PolicyDecision::Allow {
             matched_rule: None,
             source: AllowSource::DefaultPolicy,

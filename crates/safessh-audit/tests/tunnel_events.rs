@@ -16,7 +16,10 @@ fn tunnel_open_payload() {
     assert_eq!(data["local_port"], 5432);
     assert_eq!(data["remote_host"], "db.internal");
     assert_eq!(data["remote_port"], 5432);
-    assert_eq!(data["opacity_warning"], "tunnel traffic is opaque to safessh");
+    assert_eq!(
+        data["opacity_warning"],
+        "tunnel traffic is opaque to safessh"
+    );
     assert_eq!(data["expires_at"], "2026-05-02T12:30:00Z");
 }
 

@@ -84,7 +84,11 @@ impl TunnelSpec {
 
 impl fmt::Display for TunnelSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}:{}", self.local_port, self.remote_host, self.remote_port)
+        write!(
+            f,
+            "{}:{}:{}",
+            self.local_port, self.remote_host, self.remote_port
+        )
     }
 }
 

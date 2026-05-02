@@ -416,14 +416,29 @@ fn summarize(event_type: &str, v: &Value) -> String {
             }
         }
         "tunnel_open" => {
-            let lp = data.and_then(|d| d.get("local_port")).and_then(|v| v.as_u64()).unwrap_or(0);
-            let rh = data.and_then(|d| d.get("remote_host")).and_then(|v| v.as_str()).unwrap_or("?");
-            let rp = data.and_then(|d| d.get("remote_port")).and_then(|v| v.as_u64()).unwrap_or(0);
+            let lp = data
+                .and_then(|d| d.get("local_port"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let rh = data
+                .and_then(|d| d.get("remote_host"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let rp = data
+                .and_then(|d| d.get("remote_port"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             format!("tunnel localhost:{lp} → {rh}:{rp}  [opaque]")
         }
         "tunnel_close" => {
-            let reason = data.and_then(|d| d.get("reason")).and_then(|v| v.as_str()).unwrap_or("?");
-            let dur = data.and_then(|d| d.get("duration_secs")).and_then(|v| v.as_u64()).unwrap_or(0);
+            let reason = data
+                .and_then(|d| d.get("reason"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let dur = data
+                .and_then(|d| d.get("duration_secs"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             let dur_label = if dur >= 60 {
                 format!("{} min", dur / 60)
             } else {
