@@ -11,14 +11,32 @@ use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, Ss
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
 use safessh_storage::project::Target;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 /// Driver that exec's the system `ssh` binary with ControlMaster opts.
 pub struct OpenSshDriver {
     control_dir: PathBuf,
+}
+
+/// Returns the `user@host` or alias string that identifies the target to
+/// OpenSSH and sftp.  Extracted so both `exec` and `sftp_batch` use the
+/// same logic without duplication.
+fn openssh_host_arg(target: &Target) -> String {
+    match target {
+        Target::SshConfigAlias {
+            ssh_config_alias, ..
+        } => ssh_config_alias.clone(),
+        Target::Inline { host, user, .. } => format!("{user}@{host}"),
+    }
+}
+
+/// Returns the ControlPath socket pattern for this target, using the same
+/// `%C` expansion token as `control_master::argv_options`.
+fn control_path_for(control_dir: &Path) -> PathBuf {
+    control_dir.join("%C")
 }
 
 impl OpenSshDriver {
@@ -67,6 +85,94 @@ impl OpenSshDriver {
         argv.push("--".into());
         argv.push(command.to_string());
         argv
+    }
+
+    /// Run an sftp batch script over the existing ControlMaster socket and
+    /// return `(stdout_bytes, stderr_bytes, exit_code)`.
+    ///
+    /// The script is fed to sftp via `-b -` (stdin). `ControlMaster=no`
+    /// ensures sftp reuses the master rather than opening a new handshake.
+    /// `stdout_cap` kills the child once that many bytes have been collected,
+    /// enabling byte-level truncation for `read_file`.
+    async fn sftp_batch(
+        &self,
+        target: &Target,
+        script: &str,
+        stdout_cap: Option<u64>,
+    ) -> Result<(Vec<u8>, Vec<u8>, i32)> {
+        let cp = control_path_for(&self.control_dir);
+        let host_arg = openssh_host_arg(target);
+
+        let mut child = Command::new("sftp")
+            .arg("-o")
+            .arg(format!("ControlPath={}", cp.display()))
+            .arg("-o")
+            .arg("ControlMaster=no")
+            .arg("-o")
+            .arg("BatchMode=yes")
+            .arg("-b")
+            .arg("-")
+            .arg(host_arg)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| Error::Storage(format!("sftp spawn: {e}")))?;
+
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| Error::Storage("sftp stdin pipe missing".into()))?;
+        stdin
+            .write_all(script.as_bytes())
+            .await
+            .map_err(|e| Error::Storage(format!("sftp stdin write: {e}")))?;
+        drop(stdin);
+
+        let mut stdout_buf = Vec::new();
+        let mut stderr_buf = Vec::new();
+        let mut stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| Error::Storage("sftp stdout pipe missing".into()))?;
+        let mut stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| Error::Storage("sftp stderr pipe missing".into()))?;
+
+        if let Some(cap) = stdout_cap {
+            let mut taken = 0u64;
+            let mut chunk = [0u8; 8192];
+            loop {
+                let n = stdout.read(&mut chunk).await.unwrap_or(0);
+                if n == 0 {
+                    break;
+                }
+                let to_take = (cap.saturating_sub(taken) as usize).min(n);
+                stdout_buf.extend_from_slice(&chunk[..to_take]);
+                taken += to_take as u64;
+                if taken >= cap {
+                    let _ = child.start_kill();
+                    break;
+                }
+            }
+        } else {
+            stdout
+                .read_to_end(&mut stdout_buf)
+                .await
+                .map_err(|e| Error::Storage(format!("sftp stdout: {e}")))?;
+        }
+
+        stderr
+            .read_to_end(&mut stderr_buf)
+            .await
+            .map_err(|e| Error::Storage(format!("sftp stderr: {e}")))?;
+
+        let status = child
+            .wait()
+            .await
+            .map_err(|e| Error::Storage(format!("sftp wait: {e}")))?;
+        Ok((stdout_buf, stderr_buf, status.code().unwrap_or(-1)))
     }
 }
 
@@ -163,13 +269,38 @@ impl SshDriver for OpenSshDriver {
 
     async fn read_file(
         &self,
-        _target: &Target,
-        _path: &str,
-        _cap_bytes: u64,
+        target: &Target,
+        path: &str,
+        cap_bytes: u64,
     ) -> Result<FileReadResult> {
-        Err(Error::Storage(
-            "read_file: unimplemented in OpenSshDriver until Task 5".into(),
-        ))
+        // Sub-batch 1: resolve the canonical path.
+        let realpath_script = format!("@realpath \"{}\"\n", path.replace('"', "\\\""));
+        let (realpath_out, realpath_err, code) =
+            self.sftp_batch(target, &realpath_script, None).await?;
+        if code != 0 {
+            let s = String::from_utf8_lossy(&realpath_err);
+            if s.contains("No such file") {
+                return Err(Error::Storage(format!("no such remote file: {path}")));
+            }
+            return Err(Error::Storage(format!("sftp realpath failed: {s}")));
+        }
+        let canonical = String::from_utf8_lossy(&realpath_out).trim().to_string();
+
+        // Sub-batch 2: download to /dev/stdout; kill child when cap is reached.
+        // TODO(v0.7): consider portable fallback for non-Linux remotes where
+        // /dev/stdout may not exist.
+        let get_script = format!(
+            "get -p \"{}\" /dev/stdout\n",
+            canonical.replace('"', "\\\"")
+        );
+        let (bytes, _stderr, _code) =
+            self.sftp_batch(target, &get_script, Some(cap_bytes)).await?;
+        let truncated = bytes.len() as u64 == cap_bytes;
+        Ok(FileReadResult {
+            bytes,
+            canonical_path: canonical,
+            truncated,
+        })
     }
 
     async fn write_file(
