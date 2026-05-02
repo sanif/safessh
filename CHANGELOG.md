@@ -5,7 +5,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.4.0] - YYYY-MM-DD
+## [0.4.0] - 2026-05-02
 
 ### Added
 - `safessh <project> [--on <target>] forward <local>:<remote_host>:<remote_port>` —
