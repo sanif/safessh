@@ -224,9 +224,7 @@ async fn read_stdin_bounded(max_bytes: u64) -> Result<Vec<u8>> {
 /// Strip `--yolo`, `--on <target>` (or `--on=<target>`) from the argv slice.
 ///
 /// Returns `(remaining_args, yolo_seen, on_target_value)`.
-pub(super) fn parse_write_extras(
-    args: Vec<String>,
-) -> (Vec<String>, bool, Option<String>) {
+pub(super) fn parse_write_extras(args: Vec<String>) -> (Vec<String>, bool, Option<String>) {
     let mut filtered: Vec<String> = Vec::with_capacity(args.len());
     let mut yolo = false;
     let mut on_target: Option<String> = None;

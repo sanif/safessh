@@ -228,10 +228,15 @@ impl RulesScreen {
         );
 
         // Row 2: tabs.
-        let titles: Vec<Line> = [RuleTab::Timed, RuleTab::Always, RuleTab::Blocked, RuleTab::File]
-            .iter()
-            .map(|t| Line::raw(t.label()))
-            .collect();
+        let titles: Vec<Line> = [
+            RuleTab::Timed,
+            RuleTab::Always,
+            RuleTab::Blocked,
+            RuleTab::File,
+        ]
+        .iter()
+        .map(|t| Line::raw(t.label()))
+        .collect();
         let tabs = Tabs::new(titles)
             .block(Block::default().borders(Borders::ALL))
             .select(self.tab.idx())

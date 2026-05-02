@@ -57,7 +57,10 @@ pub struct DecisionInput<'a> {
 pub fn decide(input: DecisionInput<'_>) -> (PolicyDecision, Option<ParsedCommand>) {
     // File operations short-circuit the AST parser entirely.
     if let (Some(category), Some(path)) = (input.file_op.category(), input.file_op.path()) {
-        return (decide_file(category, path, input.policy, input.preset_file_rules), None);
+        return (
+            decide_file(category, path, input.policy, input.preset_file_rules),
+            None,
+        );
     }
 
     // Exec path — unchanged from v0.2.
@@ -120,7 +123,9 @@ pub fn decide(input: DecisionInput<'_>) -> (PolicyDecision, Option<ParsedCommand
         );
     }
 
-    let needs_approval = cats.iter().any(|c| input.policy.require_approval.contains(c))
+    let needs_approval = cats
+        .iter()
+        .any(|c| input.policy.require_approval.contains(c))
         || cats.iter().any(|c| !input.policy.allow.contains(c));
     if !needs_approval {
         return (

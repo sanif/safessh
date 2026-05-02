@@ -343,10 +343,7 @@ impl SshDriver for OpenSshDriver {
         // Apply byte cap: read up to `cap_bytes` from the local file.
         let mut file = std::fs::File::open(&local_path)
             .map_err(|e| Error::Storage(format!("open local download: {e}")))?;
-        let file_len = file
-            .metadata()
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
         let mut bytes = Vec::with_capacity(cap_bytes.min(file_len) as usize);
         use std::io::Read;
         file.by_ref()

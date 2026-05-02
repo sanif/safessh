@@ -165,7 +165,10 @@ async fn read_happy_path_frames_stdout_and_audits() {
         "expected Ok(_), got: {:?}",
         result.unwrap_err()
     );
-    assert!(!result.unwrap(), "non-truncated read should return Ok(false)");
+    assert!(
+        !result.unwrap(),
+        "non-truncated read should return Ok(false)"
+    );
 
     let events = read_audit_events(&paths);
     assert!(
@@ -529,7 +532,10 @@ async fn read_yolo_flag_bypasses_policy() {
         .iter()
         .map(|e| e["event_type"].as_str().unwrap_or(""))
         .collect();
-    assert!(types.contains(&"yolo_invocation"), "missing yolo_invocation: {types:?}");
+    assert!(
+        types.contains(&"yolo_invocation"),
+        "missing yolo_invocation: {types:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -562,11 +568,7 @@ deny = []
     paths.ensure_dirs().unwrap();
 
     // Write a global config with disable_yolo = true.
-    fs::write(
-        paths.config_file(),
-        "disable_yolo = true\n",
-    )
-    .unwrap();
+    fs::write(paths.config_file(), "disable_yolo = true\n").unwrap();
 
     let mock = Arc::new(MockDriver::new());
     mock.put_file("default", "/etc/hostname", b"server\n");

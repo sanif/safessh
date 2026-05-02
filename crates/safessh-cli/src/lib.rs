@@ -5,8 +5,8 @@
 //! API of the safessh workspace — it is `pub` only for `#[cfg(test)]`
 //! and the crate-level integration tests in `tests/`.
 
+pub mod cli;
 pub mod commands;
 pub mod errors;
 pub mod output;
 pub mod prompt;
-pub mod cli;

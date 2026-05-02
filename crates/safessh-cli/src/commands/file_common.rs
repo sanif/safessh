@@ -9,7 +9,9 @@ use safessh_audit::jsonl::AuditWriter;
 use safessh_core::error::Result;
 use safessh_core::types::{ParsedCommand, PolicyDecision};
 use safessh_policy::decision::{decide, DecisionInput, FileOp};
-use safessh_storage::approvals::{AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore};
+use safessh_storage::approvals::{
+    AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore,
+};
 use safessh_storage::paths::Paths;
 use safessh_storage::policies::preset_file_rules;
 use safessh_storage::project::Project;

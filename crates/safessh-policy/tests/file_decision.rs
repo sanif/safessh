@@ -34,7 +34,10 @@ fn preset_blocks_read_of_sensitive_path() {
         decision: FileDecision::Allow,
     });
     let (decision, _) = decide(input(&policy, FileOp::Read("/etc/shadow")));
-    assert!(matches!(decision, PolicyDecision::Deny { .. }), "got {decision:?}");
+    assert!(
+        matches!(decision, PolicyDecision::Deny { .. }),
+        "got {decision:?}"
+    );
 }
 
 #[test]
@@ -98,6 +101,9 @@ fn glob_single_star_does_not_cross_segment() {
         decision: FileDecision::Deny,
     });
     // single-segment glob should NOT match the deeper path
-    let (d, _) = decide(input(&policy, FileOp::Read("/etc/nginx/sites-available/foo")));
+    let (d, _) = decide(input(
+        &policy,
+        FileOp::Read("/etc/nginx/sites-available/foo"),
+    ));
     assert!(matches!(d, PolicyDecision::Allow { .. }), "got {d:?}");
 }

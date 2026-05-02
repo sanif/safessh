@@ -117,9 +117,9 @@ impl SshDriver for MockDriver {
     ) -> Result<FileReadResult> {
         let key = (target.name().to_string(), path.to_string());
         let map = self.files.lock().expect("MockDriver files mutex poisoned");
-        let bytes = map.get(&key).ok_or_else(|| {
-            Error::Storage(format!("NotFound: no such remote file: {path}"))
-        })?;
+        let bytes = map
+            .get(&key)
+            .ok_or_else(|| Error::Storage(format!("NotFound: no such remote file: {path}")))?;
         let cap = cap_bytes as usize;
         if bytes.len() > cap {
             Ok(FileReadResult {

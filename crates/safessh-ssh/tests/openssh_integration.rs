@@ -64,7 +64,11 @@ use testcontainers::{
 /// Returns `Some(())` if Docker is available, otherwise `None` (caller skips).
 fn check_docker_available() -> Option<()> {
     let out = StdCommand::new("docker").arg("info").output().ok()?;
-    if out.status.success() { Some(()) } else { None }
+    if out.status.success() {
+        Some(())
+    } else {
+        None
+    }
 }
 
 /// `tests/fixtures/` lives at the workspace root.
@@ -193,11 +197,7 @@ fn install_ssh_wrapper(bin_dir: &Path) {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(
-                &wrapper,
-                std::fs::Permissions::from_mode(0o755),
-            )
-            .unwrap();
+            std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
     }
 }
@@ -256,8 +256,7 @@ async fn read_remote_file_returns_hostname() {
     ensure_ssh_wrapper_in_path();
 
     let control_dir = short_tempdir();
-    let driver =
-        OpenSshDriver::new(control_dir.path().to_path_buf()).expect("driver::new");
+    let driver = OpenSshDriver::new(control_dir.path().to_path_buf()).expect("driver::new");
     let target = make_target(port);
 
     // Warm up the ControlMaster so sftp can reuse the mux socket.
@@ -301,8 +300,7 @@ async fn write_then_read_round_trips_via_sftp() {
     ensure_ssh_wrapper_in_path();
 
     let control_dir = short_tempdir();
-    let driver =
-        OpenSshDriver::new(control_dir.path().to_path_buf()).expect("driver::new");
+    let driver = OpenSshDriver::new(control_dir.path().to_path_buf()).expect("driver::new");
     let target = make_target(port);
 
     // Warm up the ControlMaster.

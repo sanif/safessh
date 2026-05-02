@@ -143,10 +143,7 @@ impl ApprovalsScreen {
                     .cloned()
                     .unwrap_or_else(|| req.categories.first().cloned().unwrap_or_default());
 
-                let path_str = req
-                    .path
-                    .clone()
-                    .unwrap_or_else(|| "*".to_string());
+                let path_str = req.path.clone().unwrap_or_else(|| "*".to_string());
 
                 let store = ProjectStore::new(self.paths.clone());
                 let mut project = store.load(&req.project)?;
@@ -159,7 +156,10 @@ impl ApprovalsScreen {
             }
             // For all other actions on file ops: the pending file was already
             // consumed above (take); no pattern rule needs writing.
-            PickerAction::Once | PickerAction::Timed(_) | PickerAction::Deny | PickerAction::Block => {}
+            PickerAction::Once
+            | PickerAction::Timed(_)
+            | PickerAction::Deny
+            | PickerAction::Block => {}
         }
         Ok(())
     }

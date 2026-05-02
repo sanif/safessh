@@ -45,7 +45,10 @@ decision = "block"
     assert!(matches!(p.file_rules[1].decision, FileDecision::Approve));
     assert!(matches!(p.file_rules[2].decision, FileDecision::Deny));
     assert!(matches!(p.file_rules[3].decision, FileDecision::Block));
-    assert_eq!(p.file_rules[0].paths, vec!["/etc/nginx/*".to_string(), "/var/log/nginx/**".into()]);
+    assert_eq!(
+        p.file_rules[0].paths,
+        vec!["/etc/nginx/*".to_string(), "/var/log/nginx/**".into()]
+    );
 }
 
 #[test]
@@ -60,7 +63,10 @@ paths = ["/x"]
 decision = "maybe"
 "#;
     let err = toml::from_str::<Policy>(toml_src).unwrap_err().to_string();
-    assert!(err.contains("decision"), "error did not mention `decision`: {err}");
+    assert!(
+        err.contains("decision"),
+        "error did not mention `decision`: {err}"
+    );
 }
 
 #[test]

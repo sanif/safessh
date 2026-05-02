@@ -7,7 +7,9 @@ use safessh_storage::approvals::{
     AlwaysStore, BlockedStore, PendingRequest, PendingStore, TimedStore,
 };
 use safessh_storage::paths::Paths;
-use safessh_storage::project::{Approvals, FileDecision, OutputCaps, Policy, Project, ProjectStore, Target};
+use safessh_storage::project::{
+    Approvals, FileDecision, OutputCaps, Policy, Project, ProjectStore, Target,
+};
 use safessh_tui::screens::approvals::{ApprovalsScreen, PickerAction};
 
 fn setup_with_one() -> (tempfile::TempDir, Paths, String) {

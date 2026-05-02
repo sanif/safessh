@@ -25,40 +25,34 @@ async fn main() {
     let yolo = parsed.yolo;
 
     match parsed.command {
-        cli::TopCmd::External(args) => {
-            match find_verb(&args).map(|s| s.as_str()) {
-                Some("exec") => {
-                    if let Err(e) = commands::exec::run(args, yolo).await {
-                        errors::report_and_exit(e);
-                    }
-                }
-                Some("read") => {
-                    match commands::read::run(args, yolo).await {
-                        Ok(truncated) => {
-                            if truncated {
-                                std::process::exit(30);
-                            }
-                        }
-                        Err(e) => errors::report_and_exit(e),
-                    }
-                }
-                Some("write") => {
-                    match commands::write::run(args, yolo).await {
-                        Ok(truncated) => {
-                            if truncated {
-                                std::process::exit(30);
-                            }
-                        }
-                        Err(e) => errors::report_and_exit(e),
-                    }
-                }
-                _ => {
-                    errors::report_and_exit(safessh_core::error::Error::Usage(
-                        "expected: exec | read | write".into(),
-                    ));
+        cli::TopCmd::External(args) => match find_verb(&args).map(|s| s.as_str()) {
+            Some("exec") => {
+                if let Err(e) = commands::exec::run(args, yolo).await {
+                    errors::report_and_exit(e);
                 }
             }
-        }
+            Some("read") => match commands::read::run(args, yolo).await {
+                Ok(truncated) => {
+                    if truncated {
+                        std::process::exit(30);
+                    }
+                }
+                Err(e) => errors::report_and_exit(e),
+            },
+            Some("write") => match commands::write::run(args, yolo).await {
+                Ok(truncated) => {
+                    if truncated {
+                        std::process::exit(30);
+                    }
+                }
+                Err(e) => errors::report_and_exit(e),
+            },
+            _ => {
+                errors::report_and_exit(safessh_core::error::Error::Usage(
+                    "expected: exec | read | write".into(),
+                ));
+            }
+        },
         cli::TopCmd::Project { cmd } => {
             if let Err(e) = commands::project::run(cmd) {
                 errors::report_and_exit(e);
