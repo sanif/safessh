@@ -8,10 +8,12 @@
 //! Coverage maps to the six acceptance criteria:
 //! 1. Happy-path: framed stdout, exit 0, two audit events written.
 //! 2. `--on db` selects the named target.
-//! 3. Truncation → complete audit has `truncated: true`.
+//! 3. Truncation → `Ok(true)` returned; complete audit has `truncated: true`.
 //! 4. `RequireApproval` → `Error::ApprovalRequired`, no SSH call.
 //! 5. `Deny` → `Error::Denied`; `Block` → `Error::Blocked`.
-//! 6. Redactor strips AWS access keys; sha256 in audit matches redacted bytes.
+//! 6. Redactor strips AWS access keys; sha256 in audit matches pre-redaction bytes.
+//! 7. `--yolo` skips policy, writes `yolo_invocation` event, still reads file.
+//! 8. `--yolo` + `disable_yolo = true` → `Error::YoloRefused`.
 
 use safessh_cli::commands::read::run_with_driver_and_paths;
 use safessh_core::error::Error;
@@ -140,7 +142,7 @@ fn paths_at(root: &Path) -> Paths {
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: happy path — two audit events written, Ok(()) returned
+// Test 1: happy path — two audit events written, Ok(false) returned
 // Acceptance criteria 1: `file_read` + `file_read_complete` events; exit 0.
 // ---------------------------------------------------------------------------
 
@@ -153,15 +155,17 @@ async fn read_happy_path_frames_stdout_and_audits() {
 
     let result = run_with_driver_and_paths(
         args(&["prod", "read", "/etc/hostname"]),
+        false,
         mock,
         paths.clone(),
     )
     .await;
     assert!(
         result.is_ok(),
-        "expected Ok(()), got: {:?}",
+        "expected Ok(_), got: {:?}",
         result.unwrap_err()
     );
+    assert_eq!(result.unwrap(), false, "non-truncated read should return Ok(false)");
 
     let events = read_audit_events(&paths);
     assert!(
@@ -198,6 +202,7 @@ async fn read_on_named_target_selects_db() {
 
     let result = run_with_driver_and_paths(
         args(&["prod", "--on", "db", "read", "/etc/hostname"]),
+        false,
         mock,
         paths,
     )
@@ -210,18 +215,15 @@ async fn read_on_named_target_selects_db() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 3: truncation → complete audit has truncated=true (acceptance criterion 3)
+// Test 3: truncation → Ok(true) and complete audit has truncated=true (AC 3)
 //
 // We use a project with a 5-byte file_read cap and seed a file that exceeds it.
 // The mock driver returns `truncated=true` when stored bytes > cap_bytes.
-// `run_with_driver_and_paths` calls `std::process::exit(30)` on truncation, so
-// we verify the audit event BEFORE that path executes by using content that
-// barely fits (non-truncated case), and separately inspecting what the
-// decision engine produces for truncated data via the audit log.
+// run_with_driver_and_paths returns Ok(true) so the caller (main.rs) can exit 30.
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn read_truncated_complete_audit_has_truncated_true() {
+async fn read_truncated_returns_ok_true_and_audits_truncated() {
     let dir = tempfile::tempdir().unwrap();
     let projects = dir.path().join("config/projects");
     fs::create_dir_all(&projects).unwrap();
@@ -248,16 +250,22 @@ file_read_cap_bytes = 5
     let paths = paths_at(dir.path());
     paths.ensure_dirs().unwrap();
 
-    // Non-truncated case: 2 bytes fit within the 5-byte cap.
-    let mock_ok = Arc::new(MockDriver::new());
-    mock_ok.put_file("default", "/small.txt", b"hi");
+    // Seed a file with 10 bytes — exceeds the 5-byte cap, so mock returns truncated=true.
+    let mock = Arc::new(MockDriver::new());
+    mock.put_file("default", "/big.txt", b"0123456789");
+
     let result = run_with_driver_and_paths(
-        args(&["prod", "read", "/small.txt"]),
-        mock_ok,
+        args(&["prod", "read", "/big.txt"]),
+        false,
+        mock,
         paths.clone(),
     )
     .await;
-    assert!(result.is_ok(), "non-truncated read should succeed");
+
+    assert!(
+        matches!(result, Ok(true)),
+        "truncated read should return Ok(true), got: {result:?}"
+    );
 
     let events = read_audit_events(&paths);
     let complete = events
@@ -266,8 +274,8 @@ file_read_cap_bytes = 5
         .expect("should have file_read_complete event");
     assert_eq!(
         complete["data"]["truncated"].as_bool(),
-        Some(false),
-        "non-truncated read should have truncated=false in audit"
+        Some(true),
+        "truncated read should have truncated=true in audit"
     );
 }
 
@@ -285,6 +293,7 @@ async fn read_require_approval_returns_blocked_error() {
 
     let result = run_with_driver_and_paths(
         args(&["prod", "read", "/etc/secret"]),
+        false,
         mock,
         paths.clone(),
     )
@@ -321,6 +330,7 @@ async fn read_deny_returns_denied_error() {
     let mock = Arc::new(MockDriver::new());
     let result = run_with_driver_and_paths(
         args(&["prod", "read", "/etc/shadow"]),
+        false,
         mock,
         paths.clone(),
     )
@@ -385,6 +395,7 @@ decision = "block"
     let mock = Arc::new(MockDriver::new());
     let result = run_with_driver_and_paths(
         args(&["prod", "read", "/var/log/app.log"]),
+        false,
         mock,
         paths,
     )
@@ -397,11 +408,15 @@ decision = "block"
 }
 
 // ---------------------------------------------------------------------------
-// Test 6: Redactor strips secrets; sha256 in audit matches redacted bytes (AC 6)
+// Test 6: Redactor strips secrets; sha256 in audit matches PRE-redaction bytes (AC 6)
+//
+// The sha256 field records the on-disk / wire hash so tamper-evidence is
+// preserved even if the redactor's patterns change later. bytes_returned
+// likewise reflects the wire size, not the post-redaction length.
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn read_redactor_runs_before_output() {
+async fn read_redactor_runs_before_output_sha256_is_pre_redaction() {
     let (_dir, paths) = setup_allow_project();
 
     let content = b"AKIAIOSFODNN7EXAMPLE is the key\n";
@@ -412,6 +427,7 @@ async fn read_redactor_runs_before_output() {
 
     let result = run_with_driver_and_paths(
         args(&["prod", "read", "/etc/creds"]),
+        false,
         mock,
         paths.clone(),
     )
@@ -425,16 +441,146 @@ async fn read_redactor_runs_before_output() {
         .expect("should have file_read_complete");
 
     let audited_sha = complete["data"]["sha256"].as_str().unwrap_or("");
-    assert_ne!(
+    // sha256 must match the ORIGINAL (pre-redaction) bytes — tamper evidence
+    // records what came off the wire, independent of redactor pattern changes.
+    assert_eq!(
         audited_sha, original_sha,
-        "audited sha256 must differ from original (redactor must have run)"
+        "sha256 in audit must match pre-redaction (original) content"
     );
-    // Verify against the actual redacted bytes.
+
+    // Sanity: confirm the redacted content would have a different sha.
     let redacted = b"<REDACTED:aws_access_key> is the key\n";
     let redacted_sha = sha256_hex(redacted);
-    assert_eq!(
+    assert_ne!(
         audited_sha, redacted_sha,
-        "sha256 in audit should match redacted content"
+        "audited sha256 must differ from post-redaction sha (proving it's pre-redaction)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: --yolo in argv bypasses policy, writes yolo_invocation event (AC 7)
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn read_yolo_in_argv_bypasses_policy_and_audits() {
+    // Use the approval project so the policy would normally block us.
+    let (_dir, paths) = setup_approval_project();
+
+    let mock = Arc::new(MockDriver::new());
+    mock.put_file("default", "/etc/hostname", b"prod-server\n");
+
+    let result = run_with_driver_and_paths(
+        args(&["prod", "read", "--yolo", "/etc/hostname"]),
+        false,
+        mock,
+        paths.clone(),
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "yolo should bypass approval requirement, got: {result:?}"
+    );
+
+    let events = read_audit_events(&paths);
+    let types: Vec<&str> = events
+        .iter()
+        .map(|e| e["event_type"].as_str().unwrap_or(""))
+        .collect();
+    assert!(
+        types.contains(&"yolo_invocation"),
+        "missing yolo_invocation audit event: {types:?}"
+    );
+    assert!(
+        types.contains(&"file_read_complete"),
+        "missing file_read_complete event on yolo path: {types:?}"
+    );
+    // The policy attempt event must NOT appear on the yolo path.
+    assert!(
+        !types.contains(&"file_read"),
+        "must not have file_read attempt event on yolo path: {types:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: yolo=true (top-level flag) also bypasses policy (AC 7)
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn read_yolo_flag_bypasses_policy() {
+    let (_dir, paths) = setup_approval_project();
+
+    let mock = Arc::new(MockDriver::new());
+    mock.put_file("default", "/etc/hostname", b"prod-server\n");
+
+    let result = run_with_driver_and_paths(
+        args(&["prod", "read", "/etc/hostname"]),
+        true, // yolo via top-level flag
+        mock,
+        paths.clone(),
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "yolo top-level flag should bypass approval: {result:?}"
+    );
+
+    let events = read_audit_events(&paths);
+    let types: Vec<&str> = events
+        .iter()
+        .map(|e| e["event_type"].as_str().unwrap_or(""))
+        .collect();
+    assert!(types.contains(&"yolo_invocation"), "missing yolo_invocation: {types:?}");
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: disable_yolo = true → Error::YoloRefused (exit 13) (AC 8)
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn read_yolo_refused_when_disabled_globally() {
+    let dir = tempfile::tempdir().unwrap();
+    let projects = dir.path().join("config/projects");
+    fs::create_dir_all(&projects).unwrap();
+    fs::write(
+        projects.join("prod.toml"),
+        r#"
+name = "prod"
+default_target = "default"
+
+[[targets]]
+name = "default"
+ssh_config_alias = "prod-host"
+
+[policy]
+allow = ["file:read"]
+require_approval = []
+deny = []
+"#,
+    )
+    .unwrap();
+    let paths = paths_at(dir.path());
+    paths.ensure_dirs().unwrap();
+
+    // Write a global config with disable_yolo = true.
+    fs::write(
+        paths.config_file(),
+        "disable_yolo = true\n",
+    )
+    .unwrap();
+
+    let mock = Arc::new(MockDriver::new());
+    mock.put_file("default", "/etc/hostname", b"server\n");
+
+    let result = run_with_driver_and_paths(
+        args(&["prod", "read", "/etc/hostname"]),
+        true, // yolo requested
+        mock,
+        paths,
+    )
+    .await;
+    assert!(
+        matches!(result, Err(Error::YoloRefused)),
+        "expected YoloRefused when disable_yolo=true, got: {result:?}"
     );
 }
 
