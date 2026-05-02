@@ -154,6 +154,7 @@ fn pending_cleanup_expired_removes_old() {
             raw: "ls".into(),
             created_at: Utc::now() - Duration::hours(48),
             path: None,
+            tunnel: None,
         })
         .unwrap();
     store
@@ -165,6 +166,7 @@ fn pending_cleanup_expired_removes_old() {
             raw: "ls".into(),
             created_at: Utc::now(),
             path: None,
+            tunnel: None,
         })
         .unwrap();
 
