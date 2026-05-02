@@ -10,6 +10,7 @@ mod commands;
 mod errors;
 mod output;
 mod prompt;
+mod supervisor;
 
 #[tokio::main]
 async fn main() {
@@ -47,9 +48,14 @@ async fn main() {
                 }
                 Err(e) => errors::report_and_exit(e),
             },
+            Some("forward") => {
+                if let Err(e) = commands::forward::run(args, yolo).await {
+                    errors::report_and_exit(e);
+                }
+            }
             _ => {
                 errors::report_and_exit(safessh_core::error::Error::Usage(
-                    "expected: exec | read | write".into(),
+                    "expected: exec | read | write | forward".into(),
                 ));
             }
         },
@@ -87,6 +93,11 @@ async fn main() {
         }
         cli::TopCmd::Skill { cmd } => {
             if let Err(e) = commands::skill::run(cmd) {
+                errors::report_and_exit(e);
+            }
+        }
+        cli::TopCmd::TunnelSupervisor { record_path } => {
+            if let Err(e) = commands::forward::run_supervisor(record_path).await {
                 errors::report_and_exit(e);
             }
         }
