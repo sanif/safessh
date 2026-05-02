@@ -32,7 +32,7 @@ use safessh_audit::jsonl::AuditWriter;
 use safessh_core::error::{Error, Result};
 use safessh_core::redactor::Redactor;
 use safessh_core::types::{ParsedCommand, PolicyDecision};
-use safessh_policy::decision::FileOp;
+use safessh_policy::decision::{FileOp, TunnelOp};
 use safessh_policy::{decide, DecisionInput};
 use safessh_ssh::driver::{OutputChunk, SshDriver};
 use safessh_ssh::openssh::OpenSshDriver;
@@ -192,6 +192,7 @@ fn decide_and_record(
         blocks: &block_rules,
         file_op: FileOp::None,
         preset_file_rules: &[],
+        tunnel_op: TunnelOp::None,
     });
 
     let parsed = parsed.unwrap_or_else(|| ParsedCommand {

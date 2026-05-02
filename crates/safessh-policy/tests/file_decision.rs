@@ -1,5 +1,5 @@
 use safessh_core::types::PolicyDecision;
-use safessh_policy::decision::{decide, DecisionInput, FileOp};
+use safessh_policy::decision::{decide, DecisionInput, FileOp, TunnelOp};
 use safessh_storage::policies::preset_file_rules;
 use safessh_storage::project::{FileDecision, FileRule, Policy};
 
@@ -21,6 +21,7 @@ fn input<'a>(policy: &'a Policy, op: FileOp<'a>) -> DecisionInput<'a> {
         blocks: &[],
         file_op: op,
         preset_file_rules: preset_file_rules(),
+        tunnel_op: TunnelOp::None,
     }
 }
 
