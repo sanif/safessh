@@ -427,4 +427,12 @@ impl SshDriver for OpenSshDriver {
             bytes_written: bytes.len() as u64,
         })
     }
+
+    async fn open_tunnel(
+        &self,
+        _target: &Target,
+        _spec: &safessh_core::tunnel::TunnelSpec,
+    ) -> Result<Box<dyn crate::driver::TunnelHandle>> {
+        Err(Error::Ssh("open_tunnel not yet implemented (Task 7)".into()))
+    }
 }

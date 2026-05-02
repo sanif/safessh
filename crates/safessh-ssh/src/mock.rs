@@ -9,12 +9,36 @@
 //! The file-map methods (`put_file`, `read_file`, `write_file`) use an
 //! in-memory `BTreeMap` keyed by `(target_name, path)`.
 
-use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver};
+use crate::driver::{ExecResult, FileReadResult, FileWriteResult, OutputChunk, SshDriver, TunnelExit, TunnelHandle};
 use async_trait::async_trait;
 use safessh_core::error::{Error, Result};
+use safessh_core::tunnel::TunnelSpec;
 use safessh_storage::project::Target;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
+
+pub struct MockTunnelHandle {
+    pid: i32,
+    killed: std::sync::atomic::AtomicBool,
+}
+
+#[async_trait]
+impl TunnelHandle for MockTunnelHandle {
+    fn ssh_pid(&self) -> i32 {
+        self.pid
+    }
+    async fn wait(&mut self) -> Result<TunnelExit> {
+        if self.killed.load(std::sync::atomic::Ordering::Relaxed) {
+            Ok(TunnelExit::Killed)
+        } else {
+            Ok(TunnelExit::Natural(0))
+        }
+    }
+    async fn kill(&mut self) -> Result<()> {
+        self.killed.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+}
 
 #[derive(Default)]
 pub struct MockDriver {
@@ -151,5 +175,19 @@ impl SshDriver for MockDriver {
             canonical_path: path.to_string(),
             bytes_written: bytes.len() as u64,
         })
+    }
+
+    async fn open_tunnel(
+        &self,
+        _target: &Target,
+        _spec: &TunnelSpec,
+    ) -> Result<Box<dyn TunnelHandle>> {
+        // Use a counter so each call returns a unique synthetic pid >0.
+        static NEXT: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(900_000);
+        let pid = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Ok(Box::new(MockTunnelHandle {
+            pid,
+            killed: std::sync::atomic::AtomicBool::new(false),
+        }))
     }
 }
