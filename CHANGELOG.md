@@ -5,6 +5,25 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-03
+
+### Changed
+- Friendlier wording across the interactive `project add` / `project edit`
+  flows. Prompts now read more like a colleague walking you through the
+  setup ("What's the project name?", "How would you like to set up the
+  target?", "Use a private key file?", "Connect through a bastion
+  (ProxyJump)?", "Save this project?"). Validators give nudges instead
+  of compiler-style messages ("looks empty — try a name", "use letters,
+  digits, '-' or '_'", "you already have a project with that name").
+  The two ssh-config alias modes now read **Live link — re-reads
+  ~/.ssh/config on every exec** vs **Snapshot — copies host/user/port
+  now, ignores later edits**, with the same labels reused everywhere
+  the choice appears. Policy-list edit prompts spell out the semantic
+  ("allow — run without prompting", "require_approval — prompt before
+  running", "deny — refuse outright"). The non-TTY refusals are also
+  softer and tell you the exact escape hatch (flags for `add`,
+  `SAFESSH_EDIT_RAW=1` for `edit`).
+
 ## [0.4.2] - 2026-05-03
 
 ### Added

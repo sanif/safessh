@@ -30,7 +30,7 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             if name.is_none() && !any_flag {
                 if !atty::is(atty::Stream::Stdin) {
                     return Err(Error::Usage(
-                        "interactive `project add` requires a TTY; pass flags or a project name to script it"
+                        "interactive `project add` needs a real terminal — to script it, pass a project name plus `--alias`, `--host`/`--user`, or `--import-ssh-config`"
                             .into(),
                     ));
                 }
@@ -38,7 +38,7 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             }
             let name = name.ok_or_else(|| {
                 Error::Usage(
-                    "specify a project name (or run `safessh project add` with no args for the interactive flow)"
+                    "give a project name, or run `safessh project add` with no arguments to use the interactive flow"
                         .into(),
                 )
             })?;
@@ -97,7 +97,7 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
                 output: OutputCaps::default(),
             };
             store.save(&project)?;
-            println!("Created project: {name}");
+            println!("Created project '{name}'.");
         }
         ProjectCmd::List => {
             for n in store.list()? {
@@ -113,14 +113,17 @@ pub fn run(cmd: ProjectCmd) -> Result<()> {
             if !raw_edit {
                 if !atty::is(atty::Stream::Stdin) {
                     return Err(Error::Usage(
-                        "interactive `project edit` requires a TTY; set SAFESSH_EDIT_RAW=1 to spawn $EDITOR on the raw TOML"
+                        "interactive `project edit` needs a real terminal — set SAFESSH_EDIT_RAW=1 to open the project TOML in $EDITOR instead"
                             .into(),
                     ));
                 }
                 return crate::commands::interactive::edit(&store, name);
             }
-            let name = name
-                .ok_or_else(|| Error::Usage("SAFESSH_EDIT_RAW requires a project name".into()))?;
+            let name = name.ok_or_else(|| {
+                Error::Usage(
+                    "with SAFESSH_EDIT_RAW set, please pass the project name (e.g. `safessh project edit prod`)".into(),
+                )
+            })?;
             store.load(&name)?;
             let paths = Paths::user().map_err(Error::Io)?;
             let file = paths.projects_dir().join(format!("{name}.toml"));

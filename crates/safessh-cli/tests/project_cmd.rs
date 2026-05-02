@@ -22,7 +22,7 @@ fn add_with_alias_then_list() {
         .args(["project", "add", "prod", "--alias", "prod-host"])
         .assert()
         .success()
-        .stdout(contains("Created project: prod"));
+        .stdout(contains("Created project 'prod'."));
 
     safessh(dir.path())
         .args(["project", "list"])
@@ -54,7 +54,7 @@ fn add_with_inline_target_writes_host_user_port() {
         ])
         .assert()
         .success()
-        .stdout(contains("Created project: stage"));
+        .stdout(contains("Created project 'stage'."));
 
     let toml = std::fs::read_to_string(
         dir.path()
@@ -184,7 +184,7 @@ fn edit_without_tty_refuses_with_usage_error() {
         .assert()
         .failure()
         .code(2)
-        .stderr(contains("interactive `project edit` requires a TTY"));
+        .stderr(contains("interactive `project edit` needs a real terminal"));
 }
 
 #[test]
@@ -197,5 +197,5 @@ fn add_without_args_or_tty_refuses_with_usage_error() {
         .assert()
         .failure()
         .code(2)
-        .stderr(contains("interactive `project add` requires a TTY"));
+        .stderr(contains("interactive `project add` needs a real terminal"));
 }
