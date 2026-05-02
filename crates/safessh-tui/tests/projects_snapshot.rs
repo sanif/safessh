@@ -68,6 +68,7 @@ fn one_project_with_two_targets() {
                 allow: vec!["read:safe".into()],
                 require_approval: vec!["destructive:filesystem".into()],
                 deny: vec!["destructive:disk".into()],
+                file_rules: vec![],
             },
             approvals: Approvals::default(),
             output: OutputCaps::default(),

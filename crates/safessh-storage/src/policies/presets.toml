@@ -1,0 +1,28 @@
+# Binary-embedded preset deny-list. Evaluated BEFORE any per-project rule
+# (SAFETY-INVARIANT-14) — users cannot override these via `allow`.
+
+[[file_rules]]
+category = "file:read"
+paths = [
+    "/etc/shadow",
+    "/etc/sudoers",
+    "/etc/sudoers.d/**",
+    "/root/.ssh/**",
+    "/home/*/.ssh/**",
+    "**/.env*",
+    "**/id_rsa*",
+    "**/id_ed25519*",
+    "**/id_ecdsa*",
+]
+decision = "deny"
+
+[[file_rules]]
+category = "file:write"
+paths = [
+    "/etc/shadow",
+    "/etc/sudoers",
+    "/etc/sudoers.d/**",
+    "/root/.ssh/**",
+    "/home/*/.ssh/**",
+]
+decision = "deny"

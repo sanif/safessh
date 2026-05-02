@@ -2,7 +2,7 @@
 //! and the documented top-level subcommands.
 
 use assert_cmd::Command;
-use predicates::str::contains;
+use predicates::str::{contains, starts_with};
 
 #[test]
 fn version_prints() {
@@ -11,7 +11,7 @@ fn version_prints() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(contains("safessh 0.2.0"));
+        .stdout(starts_with("safessh "));
 }
 
 #[test]

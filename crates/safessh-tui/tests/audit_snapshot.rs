@@ -52,3 +52,19 @@ fn renders_recent_events() {
     let s = AuditScreen::load(&p).unwrap();
     insta::assert_snapshot!(render(&s));
 }
+
+#[test]
+fn renders_file_events_with_formatted_bytes() {
+    let p = paths();
+    // Hand-roll the audit log with file events to test byte formatting.
+    let log = "\
+{\"schema_version\":1,\"timestamp\":\"2026-04-30T10:20:00Z\",\"event_type\":\"file_read\",\"project\":\"prod\",\"data\":{\"path\":\"/etc/nginx/nginx.conf\",\"decision\":\"Allow\"},\"error_class\":null,\"error_message\":null}
+{\"schema_version\":1,\"timestamp\":\"2026-04-30T10:20:01Z\",\"event_type\":\"file_read_complete\",\"project\":\"prod\",\"data\":{\"target\":\"web\",\"path\":\"/etc/nginx/nginx.conf\",\"bytes_returned\":512,\"sha256\":\"abcd1234\",\"truncated\":false,\"duration_ms\":45},\"error_class\":null,\"error_message\":null}
+{\"schema_version\":1,\"timestamp\":\"2026-04-30T10:20:10Z\",\"event_type\":\"file_write\",\"project\":\"prod\",\"data\":{\"path\":\"/tmp/config.txt\",\"decision\":\"Allow\"},\"error_class\":null,\"error_message\":null}
+{\"schema_version\":1,\"timestamp\":\"2026-04-30T10:20:11Z\",\"event_type\":\"file_write_complete\",\"project\":\"prod\",\"data\":{\"target\":\"web\",\"path\":\"/tmp/config.txt\",\"bytes_written\":1024,\"sha256\":\"efgh5678\",\"truncated\":false,\"duration_ms\":50},\"error_class\":null,\"error_message\":null}
+{\"schema_version\":1,\"timestamp\":\"2026-04-30T10:20:20Z\",\"event_type\":\"file_read_complete\",\"project\":\"staging\",\"data\":{\"target\":\"db\",\"path\":\"/var/log/app.log\",\"bytes_returned\":5242880,\"sha256\":\"ijkl9012\",\"truncated\":true,\"duration_ms\":120},\"error_class\":null,\"error_message\":null}
+";
+    std::fs::write(p.audit_log(), log).unwrap();
+    let s = AuditScreen::load(&p).unwrap();
+    insta::assert_snapshot!(render(&s));
+}

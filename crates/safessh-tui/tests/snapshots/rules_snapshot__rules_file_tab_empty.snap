@@ -1,0 +1,9 @@
+---
+source: crates/safessh-tui/tests/rules_snapshot.rs
+expression: render(&s)
+---
+project: < prod >  (1/1)                                                                            
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Timed │ Always │ Blocked │ File                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+No file rules for prod.

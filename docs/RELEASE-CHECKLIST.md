@@ -1,18 +1,18 @@
-# Release checklist for v0.2.0
+# Release checklist for v0.3.0
 
 safessh uses cargo-dist for releases. This is the manual sequence to actually
-ship v0.2.0 to users. The same template was used for v0.1.0 — bump the version
+ship v0.3.0 to users. The same template was used for v0.2.0 — bump the version
 strings throughout for future releases.
 
 ## Prerequisites
 
 The Homebrew tap repo (`sanif/homebrew-tap`) and the safessh repo (`sanif/safessh`)
-already exist from v0.1.0. The `dist-workspace.toml` `tap` field and
+already exist from v0.2.0. The `dist-workspace.toml` `tap` field and
 `release.yml` repository reference both point at `sanif/homebrew-tap`.
 
 ## Step 1: Pre-release verification
 
-Merge the v0.2.0 feature branch into `develop` (if it isn't already), then
+Merge the v0.3.0 feature branch into `develop` (if it isn't already), then
 on `develop`:
 
 - `cargo build --workspace`
@@ -37,8 +37,8 @@ git push origin main
 ## Step 3: Tag and push (rc first)
 
 ```sh
-git tag -a v0.2.0-rc.1 -m "Release candidate 1 for v0.2.0"
-git push origin v0.2.0-rc.1
+git tag -a v0.3.0-rc.1 -m "Release candidate 1 for v0.3.0"
+git push origin v0.3.0-rc.1
 ```
 
 GitHub Actions runs the release workflow. Verify:
@@ -65,24 +65,24 @@ just needs a TTY allocated, e.g. `docker run -it ubuntu`):
 - `curl -fsSL <installer-url> | sh`
 - Same verification commands as above.
 
-## Step 5: Promote to v0.2.0
+## Step 5: Promote to v0.3.0
 
 If rc.1 is clean:
 
 ```sh
-git tag -a v0.2.0 -m "v0.2.0 release"
-git push origin v0.2.0
+git tag -a v0.3.0 -m "v0.3.0 release"
+git push origin v0.3.0
 ```
 
 If rc.1 has issues, fix them on `develop`, fast-forward `main`, and tag
-`v0.2.0-rc.2`. Repeat until a clean rc.
+`v0.3.0-rc.2`. Repeat until a clean rc.
 
 ## Step 6: Update CHANGELOG
 
 - Move the date in `CHANGELOG.md` to the actual release date if it changed
   from the placeholder.
 - Add an empty `[Unreleased]` section above the `[0.2.0]` block.
-- Commit: `chore: release v0.2.0`.
+- Commit: `chore: release v0.3.0`.
 
 ## Step 7: Back-merge into develop
 

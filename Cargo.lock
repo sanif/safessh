@@ -1321,6 +1321,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "globset"
+version = "0.4.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52dfc19153a48bde0cbd630453615c8151bce3a5adfac7a0aebfbf0a1e1f57e3"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2885,7 +2898,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safessh-audit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "safessh-core",
@@ -2898,7 +2911,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2916,6 +2929,7 @@ dependencies = [
  "safessh-tui",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "testcontainers",
  "thiserror 1.0.69",
@@ -2926,7 +2940,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -2939,10 +2953,11 @@ dependencies = [
 
 [[package]]
 name = "safessh-policy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "conch-parser",
+ "globset",
  "proptest",
  "safessh-core",
  "safessh-storage",
@@ -2954,7 +2969,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-skill"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "insta",
@@ -2967,21 +2982,23 @@ dependencies = [
 
 [[package]]
 name = "safessh-ssh"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "futures",
+ "rand 0.8.6",
  "safessh-core",
  "safessh-storage",
  "serde",
  "tempfile",
+ "testcontainers",
  "thiserror 1.0.69",
  "tokio",
 ]
 
 [[package]]
 name = "safessh-storage"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "directories",
@@ -2998,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "safessh-tui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "crossterm",

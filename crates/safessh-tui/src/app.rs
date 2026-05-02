@@ -172,6 +172,7 @@ impl App {
                 KeyCode::Char('1') => self.rules.switch_tab(RuleTab::Timed),
                 KeyCode::Char('2') => self.rules.switch_tab(RuleTab::Always),
                 KeyCode::Char('3') => self.rules.switch_tab(RuleTab::Blocked),
+                KeyCode::Char('4') => self.rules.switch_tab(RuleTab::File),
                 KeyCode::Up | KeyCode::Char('k') => self.rules.move_selection(-1),
                 KeyCode::Down | KeyCode::Char('j') => self.rules.move_selection(1),
                 KeyCode::Char('d') => {

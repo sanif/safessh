@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT OR Apache-2.0"
@@ -21,13 +21,13 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Internal
-safessh-core    = { path = "crates/safessh-core",    version = "0.2.0" }
-safessh-storage = { path = "crates/safessh-storage", version = "0.2.0" }
-safessh-policy  = { path = "crates/safessh-policy",  version = "0.2.0" }
-safessh-audit   = { path = "crates/safessh-audit",   version = "0.2.0" }
-safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.2.0" }
-safessh-skill   = { path = "crates/safessh-skill",   version = "0.2.0" }
-safessh-tui     = { path = "crates/safessh-tui",     version = "0.2.0" }
+safessh-core    = { path = "crates/safessh-core",    version = "0.3.0" }
+safessh-storage = { path = "crates/safessh-storage", version = "0.3.0" }
+safessh-policy  = { path = "crates/safessh-policy",  version = "0.3.0" }
+safessh-audit   = { path = "crates/safessh-audit",   version = "0.3.0" }
+safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.3.0" }
+safessh-skill   = { path = "crates/safessh-skill",   version = "0.3.0" }
+safessh-tui     = { path = "crates/safessh-tui",     version = "0.3.0" }
 
 # Common
 serde       = { version = "1", features = ["derive"] }
@@ -44,6 +44,8 @@ ratatui     = "0.28"
 crossterm   = "0.28"
 notify      = "6"
 notify-debouncer-mini = "0.4"
+
+rand        = "0.8"
 
 # Testing
 proptest    = "1"
