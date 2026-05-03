@@ -20,40 +20,61 @@ use safessh_storage::project::{Approvals, OutputCaps, Policy, Project, ProjectSt
 use safessh_storage::ssh_config::SshConfigSnapshot;
 use std::path::{Path, PathBuf};
 
-/// Line-buffered themed text input that survives bracketed paste.
+/// Themed text input that supports both arrow-key editing AND bracketed paste.
 ///
-/// `dialoguer::Input::interact_text()` puts the terminal in raw mode and
-/// reads char-by-char, which on macOS Terminal / iTerm2 with bracketed paste
-/// enabled redraws the prompt incorrectly for multi-character pastes (each
-/// keystroke prints the buffer suffix from a forward-shifting cursor, so a
-/// pasted `13.203.162.24` ends up as `13.203.162.24 3.203.162.24 .203.162.24
-/// ...`). This helper renders a styled prompt and reads the line via
-/// `stdin().read_line()` — line-buffered, paste-safe.
+/// Why we don't use `dialoguer::Input::interact_text()`:
+///   * dialoguer 0.11 puts the terminal in raw mode and reads char-by-char.
+///     On macOS Terminal / iTerm2 with bracketed paste enabled, this misrenders
+///     multi-character pastes — a pasted `13.203.162.24` shows up as
+///     `13.203.162.24 3.203.162.24 .203.162.24 ...` (each next chunk has one
+///     more char trimmed off the front; the cursor advances without the
+///     previous draw being cleared).
+///
+/// Why we don't use plain `stdin().read_line()`:
+///   * Cooked mode is paste-safe but the kernel tty driver doesn't translate
+///     arrow keys, so left/right print `^[[D`/`^[[C` literally.
+///
+/// `rustyline` is a proper line editor that handles both — paste arrives intact,
+/// arrows move the cursor, Ctrl-A/E/U/K work, etc.
 fn input_line<F>(label: &str, default: Option<&str>, mut validate: F) -> Result<String>
 where
     F: FnMut(&str) -> std::result::Result<(), String>,
 {
     use console::style;
-    use std::io::{stderr, stdin, BufRead, Write};
+    use rustyline::error::ReadlineError;
+    use rustyline::DefaultEditor;
+
+    let mut editor = DefaultEditor::new().map_err(|e| match e {
+        ReadlineError::Io(io) => Error::Io(io),
+        other => Error::Usage(format!("readline init failed: {other}")),
+    })?;
+
+    let prefix = style("?").for_stderr().cyan().bold();
+    let lbl = style(label).for_stderr().bold();
+    let def = default
+        .map(|d| format!(" [{}]", style(d).for_stderr().dim()))
+        .unwrap_or_default();
+    let prompt = format!("{prefix} {lbl}{def}: ");
 
     loop {
-        let prefix = style("?").for_stderr().cyan().bold();
-        let lbl = style(label).for_stderr().bold();
-        let def = default
-            .map(|d| format!(" [{}]", style(d).for_stderr().dim()))
-            .unwrap_or_default();
-        eprint!("{prefix} {lbl}{def}: ");
-        stderr().flush().ok();
-
-        let mut buf = String::new();
-        stdin().lock().read_line(&mut buf).map_err(Error::Io)?;
-        let raw = buf.trim_end_matches(['\r', '\n']);
-        let value = if raw.is_empty() {
+        let line = match editor.readline(&prompt) {
+            Ok(l) => l,
+            Err(ReadlineError::Interrupted) => {
+                return Err(Error::Usage("cancelled".into()));
+            }
+            Err(ReadlineError::Eof) => {
+                return Err(Error::Usage("end of input".into()));
+            }
+            Err(ReadlineError::Io(io)) => return Err(Error::Io(io)),
+            Err(other) => {
+                return Err(Error::Usage(format!("readline failed: {other}")));
+            }
+        };
+        let value = if line.is_empty() {
             default.unwrap_or("").to_string()
         } else {
-            raw.to_string()
+            line
         };
-
         match validate(&value) {
             Ok(()) => return Ok(value),
             Err(msg) => eprintln!("  {} {msg}", style("✘").for_stderr().red()),
