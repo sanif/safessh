@@ -4,6 +4,7 @@
 pub mod agents_md;
 pub mod claude_code;
 pub mod cursor;
+pub mod gemini_cli;
 
 /// Target agent framework / surface for the formatted skill content.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,6 +15,8 @@ pub enum Target {
     AgentsMd,
     /// Cursor rules file (`safessh.md` with cursor-style frontmatter).
     Cursor,
+    /// Gemini CLI section in `GEMINI.md`.
+    GeminiCli,
 }
 
 /// Format the given canonical body for the requested target.
@@ -22,6 +25,7 @@ pub fn format(target: Target, body: &str) -> String {
         Target::ClaudeCode => claude_code::format(body),
         Target::AgentsMd => agents_md::format(body),
         Target::Cursor => cursor::format(body),
+        Target::GeminiCli => gemini_cli::format(body),
     }
 }
 
@@ -31,5 +35,6 @@ pub fn filename(target: Target) -> &'static str {
         Target::ClaudeCode => "safessh.md",
         Target::AgentsMd => "AGENTS.md",
         Target::Cursor => "safessh.md",
+        Target::GeminiCli => "GEMINI.md",
     }
 }
