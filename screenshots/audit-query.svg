@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 540" width="1080" height="540">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <style>
+      .term { font-family: 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 14px; }
+      .b { font-weight: 700; }
+      .fg { fill: #e2e8f0; }
+      .dim { fill: #64748b; }
+      .cy { fill: #22d3ee; }
+      .vio { fill: #a78bfa; }
+      .gn { fill: #4ade80; }
+      .ye { fill: #fbbf24; }
+      .rd { fill: #f87171; }
+      .or { fill: #fb923c; }
+      .h { font-weight: 700; fill: #94a3b8; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="540" rx="12" fill="#0c1425"/>
+  <rect width="1080" height="32" rx="12" fill="url(#hdr)"/>
+  <rect y="20" width="1080" height="14" fill="url(#hdr)"/>
+  <circle cx="20" cy="16" r="6" fill="#ef4444"/>
+  <circle cx="40" cy="16" r="6" fill="#fbbf24"/>
+  <circle cx="60" cy="16" r="6" fill="#22c55e"/>
+  <text x="540" y="21" class="term dim" text-anchor="middle" font-size="13">audit query — last 7 days</text>
+
+  <g class="term" transform="translate(24,64)">
+    <!-- command line -->
+    <text class="cy b">$ </text><text x="18" class="fg">safessh audit query --since 7d --decision deny --format table</text>
+
+    <!-- Table header -->
+    <text y="34" class="h">timestamp                 event_type             project        target     decision           exit</text>
+    <line x1="0" y1="44" x2="1030" y2="44" stroke="#1e293b" stroke-width="1"/>
+
+    <!-- Rows -->
+    <text y="64"  class="dim">2026-05-03T11:42:18Z</text>
+    <text x="252" y="64" class="ye">exec_attempt</text>
+    <text x="404" y="64" class="fg">prod</text>
+    <text x="528" y="64" class="vio">web</text>
+    <text x="640" y="64" class="rd">deny</text>
+    <text x="868" y="64" class="dim">—</text>
+
+    <text y="86"  class="dim">2026-05-03T10:15:02Z</text>
+    <text x="252" y="86" class="ye">file_read</text>
+    <text x="404" y="86" class="fg">prod</text>
+    <text x="528" y="86" class="vio">db</text>
+    <text x="640" y="86" class="rd">deny</text>
+    <text x="868" y="86" class="dim">—</text>
+
+    <text y="108" class="dim">2026-05-02T22:08:55Z</text>
+    <text x="252" y="108" class="ye">exec_attempt</text>
+    <text x="404" y="108" class="fg">staging</text>
+    <text x="528" y="108" class="vio">web</text>
+    <text x="640" y="108" class="rd">deny</text>
+    <text x="868" y="108" class="dim">—</text>
+
+    <text y="130" class="dim">2026-05-02T19:11:30Z</text>
+    <text x="252" y="130" class="ye">exec_attempt</text>
+    <text x="404" y="130" class="fg">prod</text>
+    <text x="528" y="130" class="vio">db</text>
+    <text x="640" y="130" class="rd">deny</text>
+    <text x="868" y="130" class="dim">—</text>
+
+    <text y="152" class="dim">2026-05-01T14:33:09Z</text>
+    <text x="252" y="152" class="ye">exec_attempt</text>
+    <text x="404" y="152" class="fg">prod</text>
+    <text x="528" y="152" class="vio">web</text>
+    <text x="640" y="152" class="rd">deny</text>
+    <text x="868" y="152" class="dim">—</text>
+
+    <text y="186" class="dim">5 rows · indexed lazily from JSONL · audit.db rebuilt on demand</text>
+
+    <!-- second command -->
+    <text y="232" class="cy b">$ </text><text x="18" y="232" class="fg">safessh audit query --type exec_complete --exit-code 1..255 --since 24h --format count</text>
+    <text y="260" class="vio b">7</text>
+
+    <!-- third command -->
+    <text y="306" class="cy b">$ </text><text x="18" y="306" class="fg">safessh audit query --target prod --since 1h --format jsonl</text>
+    <text y="334" class="dim">{"timestamp":"...","event_type":"exec_attempt","project":"prod","data":{"target":"web",</text>
+    <text y="354" class="dim">  "decision":"allow","raw":"systemctl status nginx", ...}}</text>
+    <text y="378" class="dim">{"timestamp":"...","event_type":"exec_complete","project":"prod","data":{"target":"web",</text>
+    <text y="398" class="dim">  "exit_code":0,"stdout_bytes":2104,"stderr_bytes":0, ...}}</text>
+
+    <text y="438" class="cy b">$ </text><text x="18" y="438" class="fg">safessh audit query --grep 'rm -rf' --since 30d</text>
+    <text y="466" class="rd">  exec_attempt   prod   web   block    rm -rf /tmp/cache</text>
+    <text y="486" class="dim">  ↑ blocked by rule 'destructive-rm' (always-deny)</text>
+  </g>
+</svg>

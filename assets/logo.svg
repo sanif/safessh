@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 220" width="800" height="220">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="grad-mix" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="55%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="10" cy="10" r="0.7" fill="#1e3a5f" opacity="0.35"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="220" rx="14" fill="#0c1425"/>
+  <rect width="800" height="220" rx="14" fill="url(#grid)"/>
+
+  <!-- Ambient circuit traces — left corner -->
+  <g stroke="#1a2d4a" stroke-width="1.5" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M 25,90 L 65,90 L 85,55 L 115,55"/>
+    <path d="M 45,125 L 75,125 L 100,150"/>
+    <path d="M 25,70 L 45,70 L 45,110 L 25,110"/>
+  </g>
+  <g fill="#1a2d4a" opacity="0.45">
+    <circle cx="25" cy="90" r="2"/>
+    <circle cx="65" cy="90" r="2"/>
+    <circle cx="85" cy="55" r="2"/>
+    <circle cx="45" cy="125" r="2"/>
+    <circle cx="100" cy="150" r="2"/>
+  </g>
+
+  <!-- Ambient circuit traces — right corner with key/lock motif -->
+  <g stroke="#1a2d4a" stroke-width="1.5" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M 700,55 L 730,55 L 750,90 L 775,90"/>
+    <path d="M 720,125 L 750,125 L 775,150"/>
+    <path d="M 775,70 L 755,70 L 755,110 L 775,110"/>
+  </g>
+  <g fill="#1a2d4a" opacity="0.45">
+    <circle cx="700" cy="55" r="2"/>
+    <circle cx="730" cy="55" r="2"/>
+    <circle cx="775" cy="90" r="2"/>
+    <circle cx="720" cy="125" r="2"/>
+  </g>
+
+  <!-- Lock glyph (security mark) — left of wordmark -->
+  <g transform="translate(110, 80)" filter="url(#glow)">
+    <!-- shackle -->
+    <path d="M 12,18 Q 12,4 22,4 Q 32,4 32,18 L 32,28"
+          stroke="url(#grad-cyan)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- body -->
+    <rect x="4" y="28" width="36" height="32" rx="4"
+          stroke="url(#grad-mix)" stroke-width="2.5" fill="#0c1425"/>
+    <!-- keyhole -->
+    <circle cx="22" cy="42" r="3.5" fill="#22d3ee"/>
+    <line x1="22" y1="44" x2="22" y2="52" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g filter="url(#glow-soft)">
+    <text x="170" y="135"
+          font-family="'SF Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+          font-size="86"
+          font-weight="700"
+          fill="url(#grad-mix)"
+          letter-spacing="-2">safessh</text>
+  </g>
+
+  <!-- Cursor block after wordmark -->
+  <g filter="url(#glow)">
+    <rect x="638" y="78" width="14" height="60" fill="#a78bfa" opacity="0.9"/>
+  </g>
+
+  <!-- Tagline -->
+  <text x="400" y="186" text-anchor="middle"
+        font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', monospace"
+        font-size="11" fill="#64748b" letter-spacing="6">
+    SSH GATED BY POLICY · AUDITED BY DEFAULT
+  </text>
+</svg>

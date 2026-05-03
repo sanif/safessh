@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 540" width="1080" height="540">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <style>
+      .term { font-family: 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 14px; }
+      .b { font-weight: 700; }
+      .fg { fill: #e2e8f0; }
+      .dim { fill: #64748b; }
+      .cy { fill: #22d3ee; }
+      .vio { fill: #a78bfa; }
+      .gn { fill: #4ade80; }
+      .ye { fill: #fbbf24; }
+      .rd { fill: #f87171; }
+      .h { font-weight: 700; fill: #94a3b8; }
+      .sel { fill: #1e293b; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="540" rx="12" fill="#0c1425"/>
+  <rect width="1080" height="32" rx="12" fill="url(#hdr)"/>
+  <rect y="20" width="1080" height="14" fill="url(#hdr)"/>
+  <circle cx="20" cy="16" r="6" fill="#ef4444"/>
+  <circle cx="40" cy="16" r="6" fill="#fbbf24"/>
+  <circle cx="60" cy="16" r="6" fill="#22c55e"/>
+  <text x="540" y="21" class="term dim" text-anchor="middle" font-size="13">safessh tui</text>
+
+  <!-- Tabs row -->
+  <g class="term" transform="translate(24,52)">
+    <text class="vio b">[Projects]</text>
+    <text x="118" class="dim">[Approvals]</text>
+    <text x="240" class="dim">[Rules]</text>
+    <text x="320" class="dim">[Audit]</text>
+    <text x="980" class="dim">? help</text>
+  </g>
+
+  <!-- Audit screen -->
+  <g class="term" transform="translate(24,84)">
+    <!-- Filter bar -->
+    <text class="dim">filters:</text>
+    <text x="80"  class="fg">/p=</text><text x="110" class="cy">prod</text>
+    <text x="170" class="fg">/t=</text><text x="200" class="dim">-</text>
+    <text x="240" class="fg">/d=</text><text x="270" class="rd">deny</text>
+    <text x="350" class="fg">/since=</text><text x="420" class="cy">7d</text>
+    <text x="490" class="fg">/exit=</text><text x="555" class="dim">-</text>
+    <text x="980" class="dim">edit ↵</text>
+
+    <!-- Table header -->
+    <line x1="0" y1="34" x2="1030" y2="34" stroke="#1e293b"/>
+    <text y="58" class="h">TIME       TYPE                   PROJECT    TARGET   SUMMARY</text>
+    <line x1="0" y1="68" x2="1030" y2="68" stroke="#1e293b"/>
+
+    <!-- Selected row highlight -->
+    <rect x="-4" y="78" width="1030" height="22" fill="url(#hdr)" opacity="0.6"/>
+    <text x="-4" y="96" class="vio b">› </text>
+    <text y="96"  class="dim">11:42:18  </text>
+    <text x="120" y="96" class="ye">exec_attempt           </text>
+    <text x="304" y="96" class="fg">prod       </text>
+    <text x="412" y="96" class="vio">web      </text>
+    <text x="500" y="96" class="rd">rm -rf /tmp/cache  (deny)</text>
+
+    <text y="120" class="dim">10:15:02  </text>
+    <text x="120" y="120" class="ye">file_read              </text>
+    <text x="304" y="120" class="fg">prod       </text>
+    <text x="412" y="120" class="vio">db       </text>
+    <text x="500" y="120" class="rd">/etc/shadow  (deny: blocked)</text>
+
+    <text y="144" class="dim">09:08:11  </text>
+    <text x="120" y="144" class="gn">exec_complete          </text>
+    <text x="304" y="144" class="fg">prod       </text>
+    <text x="412" y="144" class="vio">web      </text>
+    <text x="500" y="144" class="fg">exit=0  </text>
+    <text x="612" y="144" class="dim">182 ms · 1.2 KB</text>
+
+    <text y="168" class="dim">09:08:09  </text>
+    <text x="120" y="168" class="ye">exec_attempt           </text>
+    <text x="304" y="168" class="fg">prod       </text>
+    <text x="412" y="168" class="vio">web      </text>
+    <text x="500" y="168" class="cy">systemctl status nginx  (allow)</text>
+
+    <text y="192" class="dim">08:50:45  </text>
+    <text x="120" y="192" class="vio">tunnel_open            </text>
+    <text x="304" y="192" class="fg">prod       </text>
+    <text x="412" y="192" class="vio">db       </text>
+    <text x="500" y="192" class="fg">localhost:15432 → db:5432  </text>
+    <text x="800" y="192" class="dim">[opaque]</text>
+
+    <text y="216" class="dim">2026-05-02</text>
+    <text x="120" y="216" class="ye">approval_requested     </text>
+    <text x="304" y="216" class="fg">prod       </text>
+    <text x="412" y="216" class="vio">web      </text>
+    <text x="500" y="216" class="cy">token=ABC-7K2  </text>
+    <text x="660" y="216" class="dim">filesystem:write</text>
+
+    <text y="240" class="dim">2026-05-02</text>
+    <text x="120" y="240" class="rd">yolo_invocation        </text>
+    <text x="304" y="240" class="fg">staging    </text>
+    <text x="412" y="240" class="vio">web      </text>
+    <text x="500" y="240" class="rd">flagged ⚑  </text>
+    <text x="600" y="240" class="dim">apt-get update; apt-get upgrade -y</text>
+
+    <text y="264" class="dim">2026-05-02</text>
+    <text x="120" y="264" class="vio">tunnel_close           </text>
+    <text x="304" y="264" class="fg">prod       </text>
+    <text x="412" y="264" class="vio">db       </text>
+    <text x="500" y="264" class="fg">duration 14 min  </text>
+    <text x="660" y="264" class="dim">user-closed</text>
+
+    <text y="288" class="dim">2026-05-01</text>
+    <text x="120" y="288" class="gn">file_write_complete    </text>
+    <text x="304" y="288" class="fg">prod       </text>
+    <text x="412" y="288" class="vio">web      </text>
+    <text x="500" y="288" class="fg">/srv/app/index.html  </text>
+    <text x="720" y="288" class="dim">12 KB · sha256:b7…</text>
+
+    <text y="312" class="dim">2026-05-01</text>
+    <text x="120" y="312" class="ye">exec_attempt           </text>
+    <text x="304" y="312" class="fg">prod       </text>
+    <text x="412" y="312" class="vio">web      </text>
+    <text x="500" y="312" class="cy">deploy.sh prod  </text>
+    <text x="640" y="312" class="dim">(allow: AlwaysRule deploy)</text>
+
+    <line x1="0" y1="334" x2="1030" y2="334" stroke="#1e293b"/>
+    <text y="358" class="dim">10 shown / 1,847 total matches  ·  press </text>
+    <text x="320" y="358" class="cy">/</text>
+    <text x="334" y="358" class="dim"> to filter</text>
+
+    <!-- Status / footer -->
+    <line x1="0" y1="396" x2="1030" y2="396" stroke="#1e293b"/>
+    <text y="416" class="cy">↑↓</text><text x="32" y="416" class="dim"> nav  </text>
+    <text x="100" y="416" class="cy">PgUp/Dn</text><text x="170" y="416" class="dim"> page  </text>
+    <text x="252" y="416" class="cy">/</text><text x="266" y="416" class="dim"> filter  </text>
+    <text x="340" y="416" class="cy">enter</text><text x="385" y="416" class="dim"> details  </text>
+    <text x="475" y="416" class="cy">tab</text><text x="510" y="416" class="dim"> screen  </text>
+    <text x="585" y="416" class="cy">q</text><text x="600" y="416" class="dim"> quit  </text>
+    <text x="900" y="416" class="dim">live</text>
+    <circle cx="950" cy="411" r="4" fill="#4ade80"/>
+  </g>
+</svg>
