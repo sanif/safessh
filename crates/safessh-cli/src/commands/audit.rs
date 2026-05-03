@@ -1,12 +1,13 @@
 //! `safessh audit query` — structured query over the SQLite-backed audit log.
 //!
-//! Falls back to a JSONL scan if the SQLite index is unavailable. (Body
-//! filled in by Task 7; this task wires flags + parsing only.)
+//! Falls back to a JSONL scan if the SQLite index is unavailable.
 
 use crate::cli::AuditFormat;
 use chrono::{DateTime, Duration, Utc};
-use safessh_audit::query::Filters;
+use safessh_audit::query::{query, Filters, Row};
+use safessh_audit::sqlite::Index;
 use safessh_core::error::{Error, Result};
+use safessh_storage::paths::Paths;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -43,10 +44,174 @@ pub fn run(
         limit,
     };
 
-    // Task 7 fills this in.
-    let _ = filters;
-    let _ = format;
+    let paths = Paths::user().map_err(Error::Io)?;
+
+    match try_sqlite(&paths, &filters) {
+        Ok(rows) => emit(&rows, format),
+        Err(_) => {
+            eprintln!("safessh: warning: audit index unavailable, falling back to log scan");
+            log_scan(&paths, &filters, format)
+        }
+    }
+}
+
+fn try_sqlite(paths: &Paths, f: &Filters) -> Result<Vec<Row>> {
+    let mut idx = Index::open_or_create(paths)?;
+    query(&mut idx, f)
+}
+
+fn emit(rows: &[Row], format: AuditFormat) -> Result<()> {
+    match format {
+        AuditFormat::Count => println!("{}", rows.len()),
+        AuditFormat::Jsonl => {
+            for r in rows {
+                println!("{}", r.raw_json);
+            }
+        }
+        AuditFormat::Table => print_table(rows),
+    }
     Ok(())
+}
+
+fn print_table(rows: &[Row]) {
+    println!(
+        "{:<25} {:<22} {:<14} {:<10} {:<18} {:>9}",
+        "timestamp", "event_type", "project", "target", "decision", "exit"
+    );
+    for r in rows {
+        let exit = r.exit_code.map(|c| c.to_string()).unwrap_or_default();
+        println!(
+            "{:<25} {:<22} {:<14} {:<10} {:<18} {:>9}",
+            short(&r.timestamp, 25),
+            short(&r.event_type, 22),
+            short(r.project.as_deref().unwrap_or(""), 14),
+            short(r.target.as_deref().unwrap_or(""), 10),
+            short(r.decision.as_deref().unwrap_or(""), 18),
+            exit
+        );
+    }
+}
+
+fn short(s: &str, n: usize) -> String {
+    if s.chars().count() <= n {
+        s.to_string()
+    } else {
+        let mut out: String = s.chars().take(n.saturating_sub(1)).collect();
+        out.push('…');
+        out
+    }
+}
+
+fn log_scan(paths: &Paths, f: &Filters, format: AuditFormat) -> Result<()> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let log_path = paths.audit_log();
+    if !log_path.exists() {
+        if matches!(format, AuditFormat::Count) {
+            println!("0");
+        }
+        return Ok(());
+    }
+    let file = File::open(&log_path).map_err(Error::Io)?;
+    let reader = BufReader::new(file);
+    let mut matched = 0usize;
+    for line in reader.lines() {
+        let Ok(line) = line else { continue };
+        if line.trim().is_empty() {
+            continue;
+        }
+        if !matches_filters_jsonl(&line, f) {
+            continue;
+        }
+        if matches!(format, AuditFormat::Jsonl) {
+            println!("{line}");
+        }
+        matched += 1;
+        if f.limit > 0 && matched as i64 >= f.limit {
+            break;
+        }
+    }
+    if matches!(format, AuditFormat::Count) {
+        println!("{matched}");
+    }
+    Ok(())
+}
+
+fn matches_filters_jsonl(line: &str, f: &Filters) -> bool {
+    use serde_json::Value;
+    if let Some(g) = &f.grep {
+        if !line.contains(g) {
+            return false;
+        }
+    }
+    let v: Option<Value> = serde_json::from_str(line).ok();
+    let Some(v) = v else {
+        return f.project.is_none()
+            && f.event_type.is_none()
+            && f.target.is_none()
+            && f.decision.is_none()
+            && f.exit_code.is_none()
+            && f.since.is_none()
+            && f.until.is_none();
+    };
+    let str_field = |path: &[&str]| {
+        let mut cur = &v;
+        for k in path {
+            cur = cur.get(*k)?;
+        }
+        cur.as_str().map(String::from)
+    };
+    let int_field = |path: &[&str]| {
+        let mut cur = &v;
+        for k in path {
+            cur = cur.get(*k)?;
+        }
+        cur.as_i64()
+    };
+    if let Some(p) = &f.project {
+        if str_field(&["project"]).as_deref() != Some(p.as_str()) {
+            return false;
+        }
+    }
+    if let Some(t) = &f.event_type {
+        if str_field(&["event_type"]).as_deref() != Some(t.as_str()) {
+            return false;
+        }
+    }
+    if let Some(t) = &f.target {
+        if str_field(&["data", "target"]).as_deref() != Some(t.as_str()) {
+            return false;
+        }
+    }
+    if let Some(d) = &f.decision {
+        if str_field(&["data", "decision"]).as_deref() != Some(d.as_str()) {
+            return false;
+        }
+    }
+    if let Some((lo, hi)) = f.exit_code {
+        let Some(c) = int_field(&["data", "exit_code"]) else {
+            return false;
+        };
+        if c < lo || c > hi {
+            return false;
+        }
+    }
+    if let Some(s) = &f.since {
+        if let Some(ts) = str_field(&["timestamp"]) {
+            if ts.as_str() < s.as_str() {
+                return false;
+            }
+        }
+    }
+    if let Some(u) = &f.until {
+        if let Some(ts) = str_field(&["timestamp"]) {
+            if ts.as_str() > u.as_str() {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 fn parse_when_opt(s: Option<&str>) -> Result<Option<String>> {
