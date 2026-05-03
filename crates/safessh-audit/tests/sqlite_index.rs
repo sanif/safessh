@@ -72,3 +72,40 @@ fn corrupt_db_is_recovered() {
     let idx = Index::open_or_create(&paths).expect("recovery");
     assert_eq!(idx.last_indexed_offset().unwrap(), 0);
 }
+
+#[test]
+fn source_file_change_resets_state() {
+    let dir = tempdir().unwrap();
+    let paths = paths_in(dir.path());
+    std::fs::create_dir_all(&paths.state).unwrap();
+
+    // First open seeds source_file = paths.audit_log().
+    {
+        let _ = Index::open_or_create(&paths).unwrap();
+        let conn = rusqlite::Connection::open(paths.audit_db()).unwrap();
+        conn.execute(
+            "INSERT INTO events(byte_offset, timestamp, event_type, raw_json) \
+             VALUES(0, '2026-01-01T00:00:00Z', 'fixture', '{}')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "UPDATE meta SET value = '4242' WHERE key = 'last_indexed_offset'",
+            [],
+        ).unwrap();
+    }
+
+    // Move the DB into a new state dir whose audit_log path differs.
+    let mut other = paths.clone();
+    other.state = dir.path().join("state2");
+    std::fs::create_dir_all(&other.state).unwrap();
+    std::fs::rename(paths.audit_db(), other.audit_db()).unwrap();
+
+    let idx = Index::open_or_create(&other).unwrap();
+    assert_eq!(idx.last_indexed_offset().unwrap(), 0);
+
+    let conn = rusqlite::Connection::open(other.audit_db()).unwrap();
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 0);
+}
