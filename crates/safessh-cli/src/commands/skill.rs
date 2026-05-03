@@ -12,7 +12,7 @@
 //! * `check` walks `detection::detect` and reports installed-vs-missing plus
 //!   hash drift per framework.
 
-use crate::cli::{SkillCmd, SkillScope};
+use crate::cli::{SkillCmd, SkillScope, UpdateScope};
 use safessh_core::error::{Error, Result};
 use safessh_skill::adapters::{format, Target};
 use safessh_skill::detection;
@@ -36,6 +36,11 @@ pub fn run(cmd: SkillCmd) -> Result<()> {
         } => uninstall(target, scope, path),
         SkillCmd::Show { target } => show(target),
         SkillCmd::Check => check(),
+        SkillCmd::Update {
+            dry_run,
+            target,
+            scope,
+        } => update(dry_run, target, scope),
     }
 }
 
@@ -252,6 +257,161 @@ fn check() -> Result<()> {
         report_path(label, "project", det.project_path.as_deref(), det.target);
     }
     Ok(())
+}
+
+fn update(dry_run: bool, targets: Vec<String>, scope: UpdateScope) -> Result<()> {
+    let cwd = cwd()?;
+    let want_user = matches!(scope, UpdateScope::User | UpdateScope::Both);
+    let want_project = matches!(scope, UpdateScope::Project | UpdateScope::Both);
+
+    let want_targets: Option<Vec<Target>> = if targets.is_empty() {
+        None
+    } else {
+        Some(
+            targets
+                .iter()
+                .map(|s| parse_target(s))
+                .collect::<Result<Vec<_>>>()?,
+        )
+    };
+
+    let combos: &[(Target, SkillScope, &'static str, &'static str)] = &[
+        (Target::ClaudeCode, SkillScope::User, "claude-code", "user"),
+        (
+            Target::ClaudeCode,
+            SkillScope::Project,
+            "claude-code",
+            "project",
+        ),
+        (
+            Target::AgentsMd,
+            SkillScope::Project,
+            "agents-md",
+            "project",
+        ),
+        (Target::Cursor, SkillScope::Project, "cursor", "project"),
+        (Target::GeminiCli, SkillScope::User, "gemini-cli", "user"),
+        (
+            Target::GeminiCli,
+            SkillScope::Project,
+            "gemini-cli",
+            "project",
+        ),
+        (Target::Codex, SkillScope::User, "codex", "user"),
+    ];
+
+    let mut updated = 0usize;
+    let mut considered = 0usize;
+
+    for (target, scope_combo, label, slabel) in combos {
+        if let Some(filt) = &want_targets {
+            if !filt.contains(target) {
+                continue;
+            }
+        }
+        let want = match scope_combo {
+            SkillScope::User => want_user,
+            SkillScope::Project => want_project,
+            SkillScope::Path => false,
+        };
+        if !want {
+            continue;
+        }
+
+        let Some(path) = default_path(*target, map_scope(scope_combo.clone()), &cwd) else {
+            continue;
+        };
+
+        let new_body = format(*target, CONTENT);
+        let existing = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(_) => continue, // not installed
+        };
+
+        let section_style = matches!(target, Target::AgentsMd | Target::GeminiCli | Target::Codex);
+        let already_installed = if section_style {
+            existing.contains("## safessh")
+        } else {
+            !existing.is_empty()
+        };
+        if !already_installed {
+            continue;
+        }
+        considered += 1;
+
+        // For section-style files, use a substring check against the
+        // canonical body — the same contract `safessh skill check` uses.
+        // For file-style targets, we want exact-match.
+        let already_current = if section_style {
+            existing.contains(new_body.trim_end())
+        } else {
+            existing == new_body
+        };
+
+        // Compute what the file would look like after re-installing.
+        // For section-style, replace `## safessh` cleanly via the helper
+        // (we can't easily preview without writing); fall back to
+        // synthesizing from `strip_section` for diff display.
+        let target_text = if section_style {
+            let stripped = safessh_skill::sections::strip_section(&existing);
+            if stripped.trim().is_empty() {
+                new_body.clone()
+            } else {
+                format!("{}\n\n{}", stripped.trim_end(), new_body)
+            }
+        } else {
+            new_body.clone()
+        };
+
+        if dry_run {
+            if already_current {
+                println!("--- {} (unchanged)", path.display());
+            } else {
+                print_diff(&path, &existing, &target_text);
+            }
+            continue;
+        }
+
+        if already_current {
+            continue;
+        }
+
+        if section_style {
+            crate::commands::skill_helper::write_section(&path, &new_body)?;
+        } else {
+            crate::commands::skill_helper::write_file(&path, &new_body)?;
+        }
+        updated += 1;
+        println!("Updated {label} ({slabel}): {}", path.display());
+    }
+
+    if !dry_run && considered == 0 {
+        eprintln!("safessh: skill: no installed copies found");
+    } else if !dry_run && updated == 0 {
+        // All copies were already current.
+        println!("All installed copies are up to date.");
+    }
+
+    Ok(())
+}
+
+fn print_diff(path: &Path, current: &str, target: &str) {
+    use similar::TextDiff;
+    if current == target {
+        println!("--- {} (unchanged)", path.display());
+        return;
+    }
+    let diff = TextDiff::from_lines(current, target);
+    println!("--- {}", path.display());
+    println!("+++ {} (proposed)", path.display());
+    for change in diff.iter_all_changes() {
+        let sign = match change.tag() {
+            similar::ChangeTag::Delete => "-",
+            similar::ChangeTag::Insert => "+",
+            similar::ChangeTag::Equal => " ",
+        };
+        print!("{sign}{change}");
+    }
 }
 
 fn report_path(label: &str, scope: &str, path: Option<&Path>, target: Target) {

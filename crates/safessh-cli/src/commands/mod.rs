@@ -10,5 +10,6 @@ pub mod policy;
 pub mod project;
 pub mod read;
 pub mod skill;
+pub mod skill_helper;
 pub mod tunnels;
 pub mod write;

@@ -219,6 +219,16 @@ pub enum SkillCmd {
         target: Option<String>,
     },
     Check,
+    /// Re-render the embedded skill body and rewrite every currently-installed
+    /// copy. Non-installed pairs are silently skipped.
+    Update {
+        #[arg(long = "dry-run")]
+        dry_run: bool,
+        #[arg(long, value_name = "TARGET")]
+        target: Vec<String>,
+        #[arg(long, value_enum, default_value_t = UpdateScope::Both)]
+        scope: UpdateScope,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -226,4 +236,11 @@ pub enum SkillScope {
     User,
     Project,
     Path,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum UpdateScope {
+    User,
+    Project,
+    Both,
 }
