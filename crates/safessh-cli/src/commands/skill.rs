@@ -2,10 +2,11 @@
 //! the user's agent frameworks.
 //!
 //! v0.1 design notes:
-//! * `install` / `uninstall` require `--target` to be specified explicitly
-//!   (or `--target all` to fan out across detected frameworks). Interactive
-//!   multi-select is deferred; the `SAFESSH_PROMPT_RESPONSE` env var path is
-//!   honored by the prompt module elsewhere but not used here.
+//! * `install` / `uninstall` require `--target` to be specified explicitly.
+//!   `--target all` walks the supported (target, scope) matrix from spec
+//!   §4.3 honoring the user-supplied `--scope`, not detection-based fan-out.
+//!   Interactive multi-select is deferred; the `SAFESSH_PROMPT_RESPONSE` env
+//!   var path is honored by the prompt module elsewhere but not used here.
 //! * `show` formats and prints the canonical content for the requested
 //!   target (defaults to `claude-code`).
 //! * `check` walks `detection::detect` and reports installed-vs-missing plus
@@ -18,6 +19,8 @@ use safessh_skill::detection;
 use safessh_skill::install::{current_hash, default_path, install_to, uninstall_at, Scope};
 use safessh_skill::CONTENT;
 use std::path::{Path, PathBuf};
+
+const ALL_TARGETS_HINT: &str = "claude-code, agents-md, cursor, gemini-cli, codex, plain, all";
 
 pub fn run(cmd: SkillCmd) -> Result<()> {
     match cmd {
@@ -43,8 +46,12 @@ fn parse_target(s: &str) -> Result<Target> {
     match s {
         "claude-code" => Ok(Target::ClaudeCode),
         "agents-md" | "agents.md" | "AGENTS.md" => Ok(Target::AgentsMd),
+        "cursor" => Ok(Target::Cursor),
+        "gemini-cli" | "gemini" => Ok(Target::GeminiCli),
+        "codex" => Ok(Target::Codex),
+        "plain" => Ok(Target::Plain),
         other => Err(Error::Usage(format!(
-            "unknown skill target: {other} (expected: claude-code, agents-md, all)"
+            "unknown skill target: {other} (expected: {ALL_TARGETS_HINT})"
         ))),
     }
 }
@@ -63,72 +70,23 @@ fn cwd() -> Result<PathBuf> {
 
 fn install(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> Result<()> {
     let target_str = target.ok_or_else(|| {
-        Error::Usage(
-            "specify --target <claude-code|agents-md|all> (interactive prompt is v0.2)".into(),
-        )
+        Error::Usage(format!(
+            "specify --target <{ALL_TARGETS_HINT}> (interactive prompt is v0.2)"
+        ))
     })?;
 
     let cwd = cwd()?;
 
     if target_str == "all" {
-        // Fan out: install at user-level for ClaudeCode if detected, and at
-        // project-level for AgentsMd (its only supported scope).
-        let mut installed: Vec<String> = vec![];
-        for det in detection::detect(&cwd) {
-            match det.target {
-                Target::ClaudeCode => {
-                    if let Some(p) = det.user_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::ClaudeCode, &p)?;
-                        installed.push(format!("claude-code (user): {}", p.display()));
-                    }
-                }
-                Target::AgentsMd => {
-                    if let Some(p) = det.project_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::AgentsMd, &p)?;
-                        installed.push(format!("agents-md (project): {}", p.display()));
-                    }
-                }
-                Target::Cursor => {
-                    if let Some(p) = det.project_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::Cursor, &p)?;
-                        installed.push(format!("cursor (project): {}", p.display()));
-                    }
-                }
-                Target::GeminiCli => {
-                    if let Some(p) = det.project_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::GeminiCli, &p)?;
-                        installed.push(format!("gemini-cli (project): {}", p.display()));
-                    } else if let Some(p) = det.user_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::GeminiCli, &p)?;
-                        installed.push(format!("gemini-cli (user): {}", p.display()));
-                    }
-                }
-                Target::Codex => {
-                    if let Some(p) = det.user_path.clone() {
-                        ensure_parent(&p)?;
-                        install_to(Target::Codex, &p)?;
-                        installed.push(format!("codex (user): {}", p.display()));
-                    }
-                }
-                Target::Plain => {}
-            }
-        }
-        if installed.is_empty() {
-            println!("No agent frameworks detected.");
-        } else {
-            for line in installed {
-                println!("Installed {line}");
-            }
-        }
-        return Ok(());
+        return install_all(scope, &cwd);
     }
 
     let target = parse_target(&target_str)?;
+    if matches!(target, Target::Plain) && !matches!(scope, SkillScope::Path) {
+        return Err(Error::Usage(
+            "--target plain requires --scope path --path <FILE>".into(),
+        ));
+    }
     let dest = resolve_dest(target, scope, path, &cwd)?;
     ensure_parent(&dest)?;
     install_to(target, &dest)?;
@@ -136,11 +94,106 @@ fn install(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> 
     Ok(())
 }
 
+/// Walk the supported (target, scope) matrix from spec §4.3, honoring the
+/// caller's `--scope`. `Plain` is intentionally absent — it is path-only and
+/// must be installed explicitly.
+fn install_all(scope: SkillScope, cwd: &Path) -> Result<()> {
+    if matches!(scope, SkillScope::Path) {
+        return Err(Error::Usage(
+            "--target all is incompatible with --scope path".into(),
+        ));
+    }
+
+    let combos: &[(Target, SkillScope, &'static str, &'static str)] = &[
+        (Target::ClaudeCode, SkillScope::User, "claude-code", "user"),
+        (
+            Target::ClaudeCode,
+            SkillScope::Project,
+            "claude-code",
+            "project",
+        ),
+        (
+            Target::AgentsMd,
+            SkillScope::Project,
+            "agents-md",
+            "project",
+        ),
+        (Target::Cursor, SkillScope::Project, "cursor", "project"),
+        (Target::GeminiCli, SkillScope::User, "gemini-cli", "user"),
+        (
+            Target::GeminiCli,
+            SkillScope::Project,
+            "gemini-cli",
+            "project",
+        ),
+        (Target::Codex, SkillScope::User, "codex", "user"),
+    ];
+
+    let want_user = matches!(scope, SkillScope::User);
+    let want_project = matches!(scope, SkillScope::Project);
+
+    let mut installed: Vec<String> = vec![];
+    let mut skipped: Vec<String> = vec![];
+    for (t, s, label, slabel) in combos {
+        let want = match s {
+            SkillScope::User => want_user,
+            SkillScope::Project => want_project,
+            SkillScope::Path => false,
+        };
+        if !want {
+            continue;
+        }
+        let Some(path) = default_path(*t, map_scope(s.clone()), cwd) else {
+            skipped.push(format!("{label} ({slabel}): no default path"));
+            continue;
+        };
+        if let Err(e) = ensure_parent(&path) {
+            skipped.push(format!("{label} ({slabel}): {e}"));
+            continue;
+        }
+        if let Err(e) = install_to(*t, &path) {
+            skipped.push(format!("{label} ({slabel}): install error: {e}"));
+            continue;
+        }
+        installed.push(format!("{label} ({slabel}): {}", path.display()));
+    }
+
+    // Note (stderr) which user/project-only targets we elided so the user
+    // sees the trade-off of their --scope choice.
+    let scope_label = if want_user { "user" } else { "project" };
+    let elided: &[&str] = if want_user {
+        // user run: project-only adapters that do not appear in `combos`
+        // for User scope.
+        &["agents-md", "cursor"]
+    } else {
+        &["codex"]
+    };
+    for label in elided {
+        eprintln!("safessh: skill: skipping {label}: no {scope_label} install path");
+    }
+
+    for line in &installed {
+        println!("Installed {line}");
+    }
+    for line in &skipped {
+        eprintln!("safessh: skill: skipping {line}");
+    }
+    if installed.is_empty() && skipped.is_empty() {
+        println!("No agent frameworks detected.");
+    }
+    Ok(())
+}
+
 fn uninstall(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> Result<()> {
     let target_str =
-        target.ok_or_else(|| Error::Usage("specify --target <claude-code|agents-md>".into()))?;
+        target.ok_or_else(|| Error::Usage(format!("specify --target <{ALL_TARGETS_HINT}>")))?;
     let cwd = cwd()?;
     let target = parse_target(&target_str)?;
+    if matches!(target, Target::Plain) && !matches!(scope, SkillScope::Path) {
+        return Err(Error::Usage(
+            "--target plain requires --scope path --path <FILE>".into(),
+        ));
+    }
     let dest = resolve_dest(target, scope, path, &cwd)?;
     uninstall_at(target, &dest)?;
     println!("Uninstalled {target_str}: {}", dest.display());
