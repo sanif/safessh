@@ -12,6 +12,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { workspace = true }
+refinery = { workspace = true }
+humantime = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

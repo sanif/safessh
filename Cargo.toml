@@ -46,6 +46,9 @@ notify      = "6"
 notify-debouncer-mini = "0.4"
 
 rand        = "0.8"
+rusqlite   = { version = "0.31", features = ["bundled", "chrono"] }
+refinery   = { version = "0.8", features = ["rusqlite"] }
+humantime  = "2"
 
 # Testing
 proptest    = "1"
