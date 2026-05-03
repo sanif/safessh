@@ -172,7 +172,28 @@ pub enum AuditCmd {
         r#type: Option<String>,
         #[arg(long, value_name = "PATTERN")]
         grep: Option<String>,
+        #[arg(long, value_name = "RFC3339|DURATION")]
+        since: Option<String>,
+        #[arg(long, value_name = "RFC3339|DURATION")]
+        until: Option<String>,
+        #[arg(long, default_value_t = 100)]
+        limit: i64,
+        #[arg(long, value_name = "allow|require_approval|deny|block")]
+        decision: Option<String>,
+        #[arg(long = "exit-code", value_name = "N|N..M")]
+        exit_code: Option<String>,
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long, value_enum, default_value_t = AuditFormat::Jsonl)]
+        format: AuditFormat,
     },
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum AuditFormat {
+    Jsonl,
+    Table,
+    Count,
 }
 
 #[derive(Subcommand, Debug)]

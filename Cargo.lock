@@ -3073,6 +3073,7 @@ dependencies = [
  "chrono",
  "clap",
  "dialoguer",
+ "humantime",
  "nix",
  "predicates",
  "safessh-audit",
