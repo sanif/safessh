@@ -20,30 +20,67 @@ use safessh_storage::project::{Approvals, OutputCaps, Policy, Project, ProjectSt
 use safessh_storage::ssh_config::SshConfigSnapshot;
 use std::path::{Path, PathBuf};
 
+/// Line-buffered themed text input that survives bracketed paste.
+///
+/// `dialoguer::Input::interact_text()` puts the terminal in raw mode and
+/// reads char-by-char, which on macOS Terminal / iTerm2 with bracketed paste
+/// enabled redraws the prompt incorrectly for multi-character pastes (each
+/// keystroke prints the buffer suffix from a forward-shifting cursor, so a
+/// pasted `13.203.162.24` ends up as `13.203.162.24 3.203.162.24 .203.162.24
+/// ...`). This helper renders a styled prompt and reads the line via
+/// `stdin().read_line()` — line-buffered, paste-safe.
+fn input_line<F>(label: &str, default: Option<&str>, mut validate: F) -> Result<String>
+where
+    F: FnMut(&str) -> std::result::Result<(), String>,
+{
+    use console::style;
+    use std::io::{stderr, stdin, BufRead, Write};
+
+    loop {
+        let prefix = style("?").for_stderr().cyan().bold();
+        let lbl = style(label).for_stderr().bold();
+        let def = default
+            .map(|d| format!(" [{}]", style(d).for_stderr().dim()))
+            .unwrap_or_default();
+        eprint!("{prefix} {lbl}{def}: ");
+        stderr().flush().ok();
+
+        let mut buf = String::new();
+        stdin().lock().read_line(&mut buf).map_err(Error::Io)?;
+        let raw = buf.trim_end_matches(['\r', '\n']);
+        let value = if raw.is_empty() {
+            default.unwrap_or("").to_string()
+        } else {
+            raw.to_string()
+        };
+
+        match validate(&value) {
+            Ok(()) => return Ok(value),
+            Err(msg) => eprintln!("  {} {msg}", style("✘").for_stderr().red()),
+        }
+    }
+}
+
 /// Run the full interactive `project add` flow and persist the result.
 pub fn add(store: &ProjectStore) -> Result<()> {
     let theme = ColorfulTheme::default();
     let existing = store.list().unwrap_or_default();
 
-    let name: String = Input::with_theme(&theme)
-        .with_prompt("What's the project name?")
-        .validate_with(move |s: &String| -> std::result::Result<(), &str> {
-            if s.trim().is_empty() {
-                return Err("looks empty — try a name");
-            }
-            if !s
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
-                return Err("use letters, digits, '-' or '_'");
-            }
-            if existing.iter().any(|n| n == s) {
-                return Err("you already have a project with that name");
-            }
-            Ok(())
-        })
-        .interact_text()
-        .map_err(io_to_err)?;
+    let name = input_line("What's the project name?", None, |s| {
+        if s.trim().is_empty() {
+            return Err("looks empty — try a name".into());
+        }
+        if !s
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err("use letters, digits, '-' or '_'".into());
+        }
+        if existing.iter().any(|n| n == s) {
+            return Err("you already have a project with that name".into());
+        }
+        Ok(())
+    })?;
 
     let has_alias = Confirm::with_theme(&theme)
         .with_prompt("Do you already have a ~/.ssh/config alias for this host?")
@@ -227,28 +264,34 @@ fn prompt_ssh_config_target(
 }
 
 fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Target> {
-    let host: String = Input::with_theme(theme)
-        .with_prompt("Hostname (e.g. 10.0.0.x, db.internal, prod-web.example.com)")
-        .validate_with(|s: &String| -> std::result::Result<(), &str> {
+    let host = input_line(
+        "Hostname (e.g. 10.0.0.x, db.internal, prod-web.example.com)",
+        None,
+        |s| {
             if s.trim().is_empty() {
-                Err("looks empty — try a hostname")
+                Err("looks empty — try a hostname".into())
             } else {
                 Ok(())
             }
-        })
-        .interact_text()
-        .map_err(io_to_err)?;
+        },
+    )?;
 
     let user_default = std::env::var("USER").unwrap_or_default();
-    let user_prompt = Input::with_theme(theme).with_prompt("Username on the remote");
-    let user: String = if user_default.is_empty() {
-        user_prompt.interact_text().map_err(io_to_err)?
-    } else {
-        user_prompt
-            .default(user_default)
-            .interact_text()
-            .map_err(io_to_err)?
-    };
+    let user = input_line(
+        "Username on the remote",
+        if user_default.is_empty() {
+            None
+        } else {
+            Some(&user_default)
+        },
+        |s| {
+            if s.trim().is_empty() {
+                Err("looks empty — try a username".into())
+            } else {
+                Ok(())
+            }
+        },
+    )?;
 
     let port: u16 = Input::with_theme(theme)
         .with_prompt("SSH port")
@@ -273,10 +316,17 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
         .interact()
         .map_err(io_to_err)?
     {
-        let s: String = Input::with_theme(theme)
-            .with_prompt("Bastion (e.g. user@bastion or user@bastion:2222)")
-            .interact_text()
-            .map_err(io_to_err)?;
+        let s = input_line(
+            "Bastion (e.g. user@bastion or user@bastion:2222)",
+            None,
+            |v| {
+                if v.trim().is_empty() {
+                    Err("looks empty — try user@host".into())
+                } else {
+                    Ok(())
+                }
+            },
+        )?;
         Some(s)
     } else {
         None
@@ -419,21 +469,21 @@ fn browse_for_file(theme: &ColorfulTheme) -> Result<PathBuf> {
 /// are resolved against the current working directory so a user sitting in
 /// `~/Workspace/cureocity/` can type `cureocity-live.pem` without the leading
 /// `./`.
-fn paste_a_path(theme: &ColorfulTheme) -> Result<PathBuf> {
-    let s: String = Input::with_theme(theme)
-        .with_prompt("Path to your key (absolute, relative, or starting with ~)")
-        .validate_with(|s: &String| -> std::result::Result<(), &str> {
+fn paste_a_path(_theme: &ColorfulTheme) -> Result<PathBuf> {
+    let s = input_line(
+        "Path to your key (absolute, relative, or starting with ~)",
+        None,
+        |s| {
             let resolved = resolve_input_path(s);
             if !resolved.exists() {
-                return Err("can't find that file (or it's not readable)");
+                return Err("can't find that file (or it's not readable)".into());
             }
             if !resolved.is_file() {
-                return Err("that's not a regular file");
+                return Err("that's not a regular file".into());
             }
             Ok(())
-        })
-        .interact_text()
-        .map_err(io_to_err)?;
+        },
+    )?;
     Ok(resolve_input_path(&s))
 }
 
@@ -462,19 +512,15 @@ fn add_target_to(
         .iter()
         .map(|t| t.name().to_string())
         .collect();
-    let target_name: String = Input::with_theme(theme)
-        .with_prompt("Name for this target?")
-        .validate_with(move |s: &String| -> std::result::Result<(), &str> {
-            if s.trim().is_empty() {
-                return Err("looks empty — try a name");
-            }
-            if existing.iter().any(|n| n == s) {
-                return Err("you already have a target with that name in this project");
-            }
-            Ok(())
-        })
-        .interact_text()
-        .map_err(io_to_err)?;
+    let target_name = input_line("Name for this target?", None, move |s| {
+        if s.trim().is_empty() {
+            return Err("looks empty — try a name".into());
+        }
+        if existing.iter().any(|n| n == s) {
+            return Err("you already have a target with that name in this project".into());
+        }
+        Ok(())
+    })?;
 
     let has_alias = Confirm::with_theme(theme)
         .with_prompt("Do you already have a ~/.ssh/config alias for this host?")
