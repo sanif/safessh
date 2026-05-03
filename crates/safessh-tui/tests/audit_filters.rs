@@ -32,9 +32,9 @@ fn parsed(binary: &str) -> ParsedCommand {
 fn project_filter_excludes_other_projects() {
     let (_tmp, p) = setup();
     let w = AuditWriter::open(&p).unwrap();
-    w.append(&event::exec_attempt("prod", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("prod", &parsed("ls"), "allow", None))
         .unwrap();
-    w.append(&event::exec_attempt("dev", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("dev", &parsed("ls"), "allow", None))
         .unwrap();
 
     let mut s = AuditScreen::load(&p).unwrap();
@@ -52,7 +52,7 @@ fn project_filter_excludes_other_projects() {
 fn type_filter_excludes_other_types() {
     let (_tmp, p) = setup();
     let w = AuditWriter::open(&p).unwrap();
-    w.append(&event::exec_attempt("prod", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("prod", &parsed("ls"), "allow", None))
         .unwrap();
     w.append(&event::exec_complete("prod", 0, 100, 0, 30, None))
         .unwrap();
@@ -72,9 +72,9 @@ fn type_filter_excludes_other_types() {
 fn grep_filter_matches_substring() {
     let (_tmp, p) = setup();
     let w = AuditWriter::open(&p).unwrap();
-    w.append(&event::exec_attempt("prod", &parsed("rm"), "Allow", None))
+    w.append(&event::exec_attempt("prod", &parsed("rm"), "allow", None))
         .unwrap();
-    w.append(&event::exec_attempt("prod", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("prod", &parsed("ls"), "allow", None))
         .unwrap();
 
     let mut s = AuditScreen::load(&p).unwrap();
@@ -96,7 +96,7 @@ fn rotation_triggers_full_reload() {
         w.append(&event::exec_attempt(
             "prod",
             &parsed(&format!("cmd{i}")),
-            "Allow",
+            "allow",
             None,
         ))
         .unwrap();
@@ -114,9 +114,9 @@ fn rotation_triggers_full_reload() {
 fn empty_filter_value_clears() {
     let (_tmp, p) = setup();
     let w = AuditWriter::open(&p).unwrap();
-    w.append(&event::exec_attempt("prod", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("prod", &parsed("ls"), "allow", None))
         .unwrap();
-    w.append(&event::exec_attempt("dev", &parsed("ls"), "Allow", None))
+    w.append(&event::exec_attempt("dev", &parsed("ls"), "allow", None))
         .unwrap();
 
     let mut s = AuditScreen::load(&p).unwrap();

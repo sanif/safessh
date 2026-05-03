@@ -229,12 +229,8 @@ fn decide_and_record(
 
     match &decision {
         PolicyDecision::Allow { source, .. } => {
-            writer.append(&event::exec_attempt(
-                project_name,
-                &parsed,
-                &format!("{source:?}"),
-                target,
-            ))?;
+            let _ = source;
+            writer.append(&event::exec_attempt(project_name, &parsed, "allow", target))?;
         }
         PolicyDecision::RequireApproval {
             token, categories, ..
@@ -290,12 +286,7 @@ fn decide_and_record(
                 }
                 // Approved (Once/Timed/Always): record the proceed decision
                 // for audit parity with the pure-Allow branch.
-                writer.append(&event::exec_attempt(
-                    project_name,
-                    &parsed,
-                    "user-approved",
-                    target,
-                ))?;
+                writer.append(&event::exec_attempt(project_name, &parsed, "allow", target))?;
             } else {
                 // Headless path: persist pending and return the structured
                 // deny token so an agent can call `safessh approve <token>`.

@@ -59,7 +59,7 @@ Emitted before the SSH driver starts a remote command. The audit append blocks t
 | `binary` | string | The first AST token (e.g. `"ls"`, `"systemctl"`). |
 | `flags` | array of string | Parsed flag tokens, in order. |
 | `args` | array of string | Parsed positional tokens, in order. |
-| `decision` | string | One of `"Allow"`, `"RequireApproval"`, `"Deny"`, `"Block"`. Note: capitalisation is the `Debug` form; query with `--decision Allow` etc. |
+| `decision` | string | Always lowercase canonical: `"allow"` \| `"require_approval"` \| `"deny"` \| `"block"`. Query with `--decision allow` etc. |
 | `target` | string \| absent | Resolved target name (additive in v0.5). Omitted on older lines. |
 
 #### `exec_complete`
@@ -166,7 +166,7 @@ Emitted when the supervisor reaps the `ssh -L` subprocess.
 A two-event exec sequence and a successful read:
 
 ```jsonl
-{"schema_version":1,"timestamp":"2026-05-03T10:15:00Z","event_type":"exec_attempt","project":"prod","data":{"raw":"ls /var/log","binary":"ls","flags":[],"args":["/var/log"],"decision":"Allow","target":"web"},"error_class":null,"error_message":null}
+{"schema_version":1,"timestamp":"2026-05-03T10:15:00Z","event_type":"exec_attempt","project":"prod","data":{"raw":"ls /var/log","binary":"ls","flags":[],"args":["/var/log"],"decision":"allow","target":"web"},"error_class":null,"error_message":null}
 {"schema_version":1,"timestamp":"2026-05-03T10:15:00Z","event_type":"exec_complete","project":"prod","data":{"exit_code":0,"stdout_bytes":482,"stderr_bytes":0,"duration_ms":143,"target":"web"},"error_class":null,"error_message":null}
 {"schema_version":1,"timestamp":"2026-05-03T10:20:01Z","event_type":"file_read_complete","project":"prod","data":{"target":"web","path":"/etc/nginx/nginx.conf","bytes_returned":512,"sha256":"abcd1234","truncated":false,"duration_ms":45},"error_class":null,"error_message":null}
 ```
@@ -253,7 +253,7 @@ safessh audit query [OPTIONS]
 | `--project <name>` | string | — | Match `project = ?` exactly. |
 | `--type <event_type>` | string | — | Match `event_type = ?` exactly (e.g. `exec_attempt`, `tunnel_open`). |
 | `--target <name>` | string | — | Match `data.target = ?` exactly. |
-| `--decision <value>` | string | — | Match `data.decision = ?` exactly. Common values: `Allow`, `RequireApproval`, `Deny`, `Block` for exec; `allow`, `require_approval`, `deny`, `block` for file events. |
+| `--decision <value>` | string | — | Match `data.decision = ?` exactly. Always lowercase canonical: `allow`, `require_approval`, `deny`, `block` (uniform across exec and file events). |
 | `--exit-code <N \| N..M>` | range | — | `42` matches exit 42; `1..255` matches a range. |
 | `--since <when>` | RFC3339 or duration | — | Lower bound (inclusive). `2026-05-01T00:00:00Z` or `7d`, `24h`, `30m`. |
 | `--until <when>` | RFC3339 or duration | — | Upper bound (inclusive). Same accepted forms as `--since`. |
@@ -280,7 +280,7 @@ safessh audit query --project prod --since 24h --format table
 Every blocked or denied operation across all projects in the past week:
 
 ```sh
-safessh audit query --since 7d --grep '"decision":"Deny"'
+safessh audit query --since 7d --grep '"decision":"deny"'
 ```
 
 How many `yolo_invocation` events have I emitted since April?
