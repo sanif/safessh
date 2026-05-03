@@ -1,3 +1,11 @@
+# Release stamps
+
+## v0.5.0 (prepared 2026-05-03)
+- Bumped on branch `feature/v0.5-v0.6`.
+- Follow the canonical v0.4.0 template below, substituting `v0.5.0`.
+
+---
+
 # Release checklist for v0.4.0
 
 safessh uses cargo-dist for releases. This is the manual sequence to actually

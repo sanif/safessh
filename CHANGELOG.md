@@ -5,6 +5,35 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-03
+
+### Added
+- **SQLite-backed audit index.** `safessh-audit` now lazily builds a
+  `audit.db` SQLite index over the JSONL audit log on first read. JSONL
+  is still authoritative — the index is a derived cache, rebuildable
+  with `rm audit.db`. Indexing is read-side only; exec / file / tunnel
+  paths are unaffected.
+- **Structured `audit query` filters.** `--since`, `--until`, `--limit`,
+  `--decision`, `--exit-code` (single value or `N..M` range), `--target`
+  added on top of the existing `--project`/`--type`/`--grep`. New
+  `--format jsonl|table|count` output mode (default jsonl preserves the
+  v0.4 contract). On SQLite failure, falls back to a JSONL log scan with
+  a stderr warning.
+- **TUI audit screen lifts the 200-event tail cap.** Now backed by the
+  SQLite index with the same filter set. Live tail still picks up new
+  appends; status line shows `n shown / N total matches`. Falls back to
+  JSONL tail when the index is unavailable.
+- **`docs/audit.md`.** New JSONL schema reference, SQLite recipe book,
+  recovery instructions.
+- **Additive `data.target` field on `exec_attempt` / `exec_complete`.**
+  Schema_version stays at 1; older readers ignore the field.
+
+### Changed
+- `exec_attempt`'s `data.decision` is now the canonical lowercase string
+  (`allow` / `require_approval` / `deny` / `block`), matching how file
+  events emit it. Previously was `format!("{:?}", AllowSource)` which
+  broke `audit query --decision allow`.
+
 ## [0.4.4] - 2026-05-03
 
 ### Added
