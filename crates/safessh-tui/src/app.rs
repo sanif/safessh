@@ -24,11 +24,23 @@ use safessh_core::error::{Error, Result};
 use safessh_storage::paths::Paths;
 use std::io::Stdout;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppAction {
     None,
     Quit,
     Redraw,
+    /// Suspend the TUI (leave alt-screen, disable raw mode), run a
+    /// `safessh` subcommand interactively, then re-enter the TUI and
+    /// reload all screens. Used by `a` / `e` on the Projects screen to
+    /// hand off to the CLI's `project add` / `project edit` flows
+    /// without re-implementing dialoguer prompts inside ratatui.
+    Suspend(SuspendCommand),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SuspendCommand {
+    ProjectAdd,
+    ProjectEdit(String),
 }
 
 pub struct App {
@@ -87,7 +99,10 @@ impl App {
     }
 
     fn footer_text(&self) -> &'static str {
-        "q quit  Tab next  ↑↓/jk move"
+        match self.current {
+            Screen::Projects => "q quit  Tab next  ↑↓/jk move  a add  e edit  i import",
+            _ => "q quit  Tab next  ↑↓/jk move",
+        }
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
@@ -140,6 +155,14 @@ impl App {
                         KeyCode::Down | KeyCode::Char('j') => self.projects.move_selection(1),
                         KeyCode::Char('i') => {
                             let _ = self.projects.open_import();
+                        }
+                        KeyCode::Char('a') => {
+                            return AppAction::Suspend(SuspendCommand::ProjectAdd);
+                        }
+                        KeyCode::Char('e') => {
+                            if let Some(name) = self.projects.selected_name() {
+                                return AppAction::Suspend(SuspendCommand::ProjectEdit(name));
+                            }
                         }
                         _ => {}
                     }
@@ -255,19 +278,32 @@ impl Drop for Tui {
 }
 
 pub async fn run(paths: Paths) -> Result<()> {
-    let mut tui = Tui::enter()?;
+    let mut tui = Some(Tui::enter()?);
     let mut app = App::new(paths);
     let mut events = EventStream::new()?;
     let _watcher = crate::watcher::start_watcher(&app.paths, events.fs_tx.clone())?;
 
     loop {
-        tui.terminal.draw(|f| app.render(f)).map_err(Error::Io)?;
+        if let Some(t) = tui.as_mut() {
+            t.terminal.draw(|f| app.render(f)).map_err(Error::Io)?;
+        }
         match events.next().await {
-            Some(AppEvent::Key(k)) => {
-                if let AppAction::Quit = app.handle_key(k) {
-                    break;
+            Some(AppEvent::Key(k)) => match app.handle_key(k) {
+                AppAction::Quit => break,
+                AppAction::Suspend(cmd) => {
+                    // Drop the Tui to leave alt-screen + raw mode so the
+                    // child process runs against the user's normal
+                    // terminal. EventStream's blocking-pool key reader
+                    // keeps polling, but it just discards events while
+                    // the subprocess is up; the runtime stays alive.
+                    drop(tui.take());
+                    run_suspended(&cmd);
+                    tui = Some(Tui::enter()?);
+                    let _ = app.projects.reload();
+                    let _ = app.approvals.reload();
                 }
-            }
+                _ => {}
+            },
             Some(AppEvent::Tick) => {
                 app.tick_toast();
             }
@@ -286,4 +322,30 @@ pub async fn run(paths: Paths) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Run a `safessh` subcommand interactively after the caller has dropped
+/// the [`Tui`]. Inherits stdin/stdout/stderr so dialoguer's prompts can
+/// read keystrokes and write directly to the user's terminal.
+///
+/// Errors are intentionally swallowed: a failure inside `project add` /
+/// `project edit` (e.g. the user pressed Ctrl-C at a prompt) shouldn't
+/// crash the TUI — we just re-enter the alt-screen with the project list
+/// reloaded. Any saved state is reflected on next render.
+fn run_suspended(cmd: &SuspendCommand) {
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+    let mut command = std::process::Command::new(exe);
+    command.arg("project");
+    match cmd {
+        SuspendCommand::ProjectAdd => {
+            command.arg("add");
+        }
+        SuspendCommand::ProjectEdit(name) => {
+            command.arg("edit").arg(name);
+        }
+    }
+    let _ = command.status();
 }

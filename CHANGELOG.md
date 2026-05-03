@@ -5,6 +5,44 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-05-03
+
+### Added
+- **TUI: `a` adds a project, `e` edits the highlighted one.** Both keys
+  on the Projects screen suspend the TUI (leave alt-screen + raw mode),
+  shell out to the same `safessh project add` / `project edit`
+  interactive flow you'd get from a plain shell, then re-enter the TUI
+  and reload screens. No state is lost across the suspend; the
+  filesystem watcher catches up via the `ProjectsChanged` event in case
+  anything was written. Footer hint and help overlay updated to advertise
+  the new bindings; `i` (multi-import dialog) is unchanged.
+
+### Changed
+- Interactive `project add` and `project edit → add target` flows
+  collapsed from a three-option top-level menu into a single linear
+  yes/no flow: *"Do you already have a `~/.ssh/config` alias for this
+  host?"*. Saying yes goes straight into the alias picker; saying no
+  asks host → user → port → "use a private key for this host?" →
+  bastion, in that order.
+- **Three escape hatches for "Where's the key?".** The yes-branch of
+  the private-key prompt now opens a sub-menu instead of immediately
+  fuzzy-listing `~/.ssh/`:
+    * **Pick from `~/.ssh/`** — the v0.4.3 fuzzy list, unchanged.
+    * **Browse another folder** — new hand-rolled directory navigator
+      built on `dialoguer::FuzzySelect`. Starts at the current working
+      directory (so a key sitting next to where you ran `safessh` is
+      the very first thing on the screen), supports `../` to step up,
+      sorts directories before files, hides dotfiles. No new
+      dependencies.
+    * **Paste a path** — the existing free-text prompt, now accepting
+      relative paths (resolved against `$PWD`) in addition to
+      absolute and `~`-prefixed paths. Keys are saved as canonical
+      absolute paths so projects keep working when you `cd` away.
+- Hostname prompt example is now obviously a placeholder
+  (`10.0.0.x`) and shows three shapes (IP, internal DNS, FQDN) so the
+  field accepts any of them: *"Hostname (e.g. 10.0.0.x, db.internal,
+  prod-web.example.com)"*.
+
 ## [0.4.3] - 2026-05-03
 
 ### Changed

@@ -47,7 +47,9 @@ Global
 Projects
   Up / k       move selection up
   Down / j     move selection down
-  i            import targets from ssh-config (Task 13)
+  a            add a new project (suspends TUI, runs interactive flow)
+  e            edit the selected project (suspends TUI, runs interactive flow)
+  i            import multiple targets from ~/.ssh/config
 
 Approvals
   Up/Down/k/j  move selection
@@ -78,9 +80,13 @@ If you change the keymap, edit the string in `crates/safessh-tui/src/help.rs::he
 
 Left list of project names (sorted). Right pane shows the selected project's `name`, `default_target`, every `Target` (`alias=X` for SshConfigAlias, `user@host:port` for Inline), and the `policy` `allow`/`require_approval`/`deny` arrays.
 
-Empty state: `No projects. Run \`safessh project add <name> --alias <alias>\` to add one.`
+Empty state: `No projects. Press \`a\` (or run \`safessh project add\`) to create one.`
 
-Press `i` to open the ssh-config import dialog — see [docs/projects.md](projects.md#tui-import-multiple-aliases-at-once).
+**Add (`a`).** Suspends the TUI (leaves alt-screen + raw mode), shells out to the same `safessh project add` interactive flow described in [docs/projects.md](projects.md#interactive-default--recommended), then re-enters the TUI and reloads the project list. Picking `Discard` or hitting Ctrl-C inside the prompts is fine — the TUI just resumes with no new project.
+
+**Edit (`e`).** Same shell-out pattern, but with the highlighted project name pre-filled so the CLI flow skips its picker step. The action menu (add target / remove target / change default / edit policy / save / discard) is the same as if you ran `safessh project edit <name>` directly.
+
+**Import (`i`).** Opens the in-TUI multi-select dialog for batch-creating projects from `~/.ssh/config` aliases — see [docs/projects.md](projects.md#tui-import-multiple-aliases-at-once). Use this when you want to mass-onboard several hosts at once; for one-off setup, `a` gives you per-prompt control (target source, key location, etc.) that the import dialog skips.
 
 ### Approvals
 

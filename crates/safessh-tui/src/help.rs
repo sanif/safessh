@@ -21,7 +21,9 @@ Global
 Projects
   Up / k       move selection up
   Down / j     move selection down
-  i            import targets from ssh-config (Task 13)
+  a            add a new project (suspends TUI, runs interactive flow)
+  e            edit the selected project (suspends TUI, runs interactive flow)
+  i            import multiple targets from ~/.ssh/config
 
 Approvals
   Up/Down/k/j  move selection
