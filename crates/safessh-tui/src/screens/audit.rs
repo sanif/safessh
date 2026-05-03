@@ -1,9 +1,13 @@
-//! Audit screen — live tail of `state/audit.log` with project / type /
-//! grep filters.
+//! Audit screen — windowed view backed by the SQLite index, with a
+//! JSONL-tail fallback when SQLite is unavailable.
 //!
-//! Tracks a byte offset into the log so `FsEvent::AuditAppended` only
-//! reads the new tail, never the whole file. If the log shrinks
-//! (truncation/rotation), falls back to a full reload.
+//! On open and on `FsEvent::AuditAppended` the screen runs
+//! `Index::catch_up + query::query` to populate `rows`. When the index
+//! cannot be opened or queried, the screen flips into `fallback_mode`
+//! and tails the JSONL log directly (the original behavior).
+//!
+// SAFETY-INVARIANT-4: the SQLite index is read-side only — failures here
+// degrade to JSONL tail. The TUI never blocks the audit-write path.
 
 use crate::theme;
 use chrono::{DateTime, Utc};
@@ -13,13 +17,17 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Row, Table, TableState},
     Frame,
 };
+use safessh_audit::{
+    query::{self, Filters as QueryFilters},
+    sqlite::Index,
+};
 use safessh_core::error::{Error, Result};
 use safessh_storage::paths::Paths;
 use serde_json::Value;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
-/// Cap the in-memory tail at 200 events; older history can be queried
+/// Cap the displayed window at 200 events; older history can be queried
 /// via `safessh audit query`.
 const TAIL_LIMIT: usize = 200;
 
@@ -37,6 +45,12 @@ pub struct Filters {
     pub project: Option<String>,
     pub event_type: Option<String>,
     pub grep: Option<String>,
+    pub since: Option<String>,
+    pub until: Option<String>,
+    pub decision: Option<String>,
+    /// Raw text the user typed; parsed at query time as `N` or `N..M`.
+    pub exit_code: Option<String>,
+    pub target: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -44,12 +58,22 @@ pub enum EditField {
     Project,
     Type,
     Grep,
+    Since,
+    Until,
+    Decision,
+    ExitCode,
+    Target,
 }
 
 pub struct AuditScreen {
     paths: Paths,
     rows: Vec<AuditRow>,
+    /// Total event count (across the entire indexed log) for the title.
+    total_count: usize,
+    /// JSONL-fallback offset; only used when `fallback_mode` is true.
     offset_bytes: u64,
+    /// `true` when SQLite is unusable; we tail JSONL directly instead.
+    fallback_mode: bool,
     selected: usize,
     auto_scroll: bool,
     pub filters: Filters,
@@ -62,14 +86,18 @@ impl AuditScreen {
         let mut s = Self {
             paths: paths.clone(),
             rows: vec![],
+            total_count: 0,
             offset_bytes: 0,
+            fallback_mode: false,
             selected: 0,
             auto_scroll: true,
             filters: Filters::default(),
             editing: None,
             edit_buf: String::new(),
         };
-        s.full_reload()?;
+        // Best-effort refresh on open. If SQLite errors, refresh()
+        // flips to fallback_mode and runs the JSONL-tail path.
+        let _ = s.refresh();
         Ok(s)
     }
 
@@ -77,7 +105,9 @@ impl AuditScreen {
         Self {
             paths: paths.clone(),
             rows: vec![],
+            total_count: 0,
             offset_bytes: 0,
+            fallback_mode: false,
             selected: 0,
             auto_scroll: true,
             filters: Filters::default(),
@@ -86,14 +116,72 @@ impl AuditScreen {
         }
     }
 
+    /// Re-run the catch-up + query against SQLite and replace `rows`.
+    /// On failure, flips to fallback_mode and reads JSONL directly.
+    fn refresh(&mut self) -> Result<()> {
+        if self.fallback_mode {
+            return self.full_reload();
+        }
+        match self.refresh_sqlite() {
+            Ok(()) => Ok(()),
+            Err(_) => {
+                self.fallback_mode = true;
+                self.full_reload()
+            }
+        }
+    }
+
+    fn refresh_sqlite(&mut self) -> Result<()> {
+        let mut idx = Index::open_or_create(&self.paths)?;
+        idx.catch_up()?;
+
+        // Query with current filters AND a TAIL_LIMIT cap so the screen
+        // shows at most the most recent N events.
+        let qf = self.build_query_filters();
+        let rows = query::query(&mut idx, &qf)?;
+
+        // For the title we want the unfiltered total, capped to a count.
+        // Reuse the same Index by running a count(*) directly.
+        let total: i64 = idx
+            .conn()
+            .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))
+            .unwrap_or(0);
+        self.total_count = total.max(0) as usize;
+
+        // SQLite returns DESC by timestamp; UI displays oldest→newest so
+        // selection-at-bottom = most recent.
+        let mut mapped: Vec<AuditRow> = rows.into_iter().map(row_from_query).collect();
+        mapped.reverse();
+        self.rows = mapped;
+        if self.auto_scroll {
+            self.selected = self.filtered_indices().last().copied().unwrap_or(0);
+        }
+        Ok(())
+    }
+
+    fn build_query_filters(&self) -> QueryFilters {
+        QueryFilters {
+            project: self.filters.project.clone(),
+            event_type: self.filters.event_type.clone(),
+            target: self.filters.target.clone(),
+            decision: self.filters.decision.clone(),
+            exit_code: parse_exit_code(self.filters.exit_code.as_deref()),
+            since: self.filters.since.clone(),
+            until: self.filters.until.clone(),
+            grep: self.filters.grep.clone(),
+            limit: TAIL_LIMIT as i64,
+        }
+    }
+
     /// Read the entire audit log from disk and keep only the trailing
     /// `TAIL_LIMIT` events. Sets `offset_bytes` to the file's current
-    /// length so subsequent `append_tail` calls only see new bytes.
+    /// length. Used as the JSONL-tail fallback.
     pub fn full_reload(&mut self) -> Result<()> {
         let path = self.paths.audit_log();
         if !path.exists() {
             self.rows.clear();
             self.offset_bytes = 0;
+            self.total_count = 0;
             return Ok(());
         }
         let total_bytes = std::fs::metadata(&path).map_err(Error::Io)?.len();
@@ -106,18 +194,37 @@ impl AuditScreen {
                 all.push(row);
             }
         }
+        self.total_count = all.len();
         let start = all.len().saturating_sub(TAIL_LIMIT);
         self.rows = all.split_off(start);
         self.offset_bytes = total_bytes;
-        self.selected = self.filtered_indices().last().copied().unwrap_or(0);
+        if self.auto_scroll {
+            self.selected = self.filtered_indices().last().copied().unwrap_or(0);
+        }
         Ok(())
     }
 
-    /// Read only the bytes appended since the last call. Falls back to
-    /// `full_reload` if the file shrunk (rotation).
+    /// Refresh the screen after the audit log has been appended-to.
+    /// In SQLite mode this re-runs catch_up + query. In fallback mode,
+    /// it reads only the new tail bytes (or full-reloads on rotation).
     pub fn append_tail(&mut self) -> Result<()> {
+        if !self.fallback_mode {
+            // SQLite mode: re-run the query. catch_up handles
+            // rotation/truncation by detecting fingerprint changes.
+            return match self.refresh_sqlite() {
+                Ok(()) => Ok(()),
+                Err(_) => {
+                    self.fallback_mode = true;
+                    self.full_reload()
+                }
+            };
+        }
+
         let path = self.paths.audit_log();
         if !path.exists() {
+            self.rows.clear();
+            self.offset_bytes = 0;
+            self.total_count = 0;
             return Ok(());
         }
         let new_len = std::fs::metadata(&path).map_err(Error::Io)?.len();
@@ -136,6 +243,7 @@ impl AuditScreen {
         for line in tail.lines() {
             if let Some(row) = parse_row(line) {
                 self.rows.push(row);
+                self.total_count += 1;
             }
         }
         if self.rows.len() > TAIL_LIMIT {
@@ -189,9 +297,19 @@ impl AuditScreen {
                 EditField::Project => self.filters.project = value,
                 EditField::Type => self.filters.event_type = value,
                 EditField::Grep => self.filters.grep = value,
+                EditField::Since => self.filters.since = value,
+                EditField::Until => self.filters.until = value,
+                EditField::Decision => self.filters.decision = value,
+                EditField::ExitCode => self.filters.exit_code = value,
+                EditField::Target => self.filters.target = value,
             }
         }
         self.edit_buf.clear();
+        // Filter changed → re-run query so SQLite mode reflects it.
+        // In fallback mode the in-memory filtering in filtered_indices
+        // does the work; refresh is a no-op for that path beyond
+        // re-reading the log, which is harmless.
+        let _ = self.refresh();
     }
 
     pub fn cancel_edit(&mut self) {
@@ -222,7 +340,17 @@ impl AuditScreen {
             .collect()
     }
 
+    pub fn fallback_mode(&self) -> bool {
+        self.fallback_mode
+    }
+
     fn filtered_indices(&self) -> Vec<usize> {
+        // In SQLite mode, query() already applied filters server-side.
+        // In fallback mode, do the original in-memory filtering so the
+        // existing filter tests continue to pass.
+        if !self.fallback_mode {
+            return (0..self.rows.len()).collect();
+        }
         let f = &self.filters;
         self.rows
             .iter()
@@ -261,6 +389,11 @@ impl AuditScreen {
                 Some(EditField::Project) => format!("    editing /p: {}_", self.edit_buf),
                 Some(EditField::Type) => format!("    editing /t: {}_", self.edit_buf),
                 Some(EditField::Grep) => format!("    editing /g: {}_", self.edit_buf),
+                Some(EditField::Since) => format!("    editing /s: {}_", self.edit_buf),
+                Some(EditField::Until) => format!("    editing /u: {}_", self.edit_buf),
+                Some(EditField::Decision) => format!("    editing /d: {}_", self.edit_buf),
+                Some(EditField::ExitCode) => format!("    editing /e: {}_", self.edit_buf),
+                Some(EditField::Target) => format!("    editing /T: {}_", self.edit_buf),
                 None => String::new(),
             }
         );
@@ -302,20 +435,57 @@ impl AuditScreen {
         if let Some(p) = visible_indices.iter().position(|&i| i == self.selected) {
             state.select(Some(p));
         }
+        let title = if self.total_count > visible.len() {
+            format!(
+                "Audit  ({} shown / {} total{})",
+                visible.len(),
+                self.total_count,
+                if self.auto_scroll { ", live" } else { "" }
+            )
+        } else {
+            format!(
+                "Audit  ({} events{})",
+                visible.len(),
+                if self.auto_scroll { ", live" } else { "" }
+            )
+        };
         let table = Table::new(rows, widths)
             .header(Row::new(vec!["TIME", "TYPE", "PROJECT", "SUMMARY"]).style(theme::title()))
-            .block(
-                Block::default()
-                    .title(format!(
-                        "Audit  ({} events{})",
-                        visible.len(),
-                        if self.auto_scroll { ", live" } else { "" }
-                    ))
-                    .borders(Borders::ALL),
-            )
+            .block(Block::default().title(title).borders(Borders::ALL))
             .highlight_style(theme::title())
             .highlight_symbol("> ");
         frame.render_stateful_widget(table, layout[1], &mut state);
+    }
+}
+
+/// Parse the exit-code text buffer as either `N` or `N..M` into the
+/// (lo, hi) tuple expected by `query::Filters`. Returns `None` on
+/// empty/invalid input.
+fn parse_exit_code(s: Option<&str>) -> Option<(i64, i64)> {
+    let s = s?.trim();
+    if s.is_empty() {
+        return None;
+    }
+    if let Some((lo, hi)) = s.split_once("..") {
+        Some((lo.parse().ok()?, hi.parse().ok()?))
+    } else {
+        let n: i64 = s.parse().ok()?;
+        Some((n, n))
+    }
+}
+
+fn row_from_query(qr: query::Row) -> AuditRow {
+    let v: Value = serde_json::from_str(&qr.raw_json).unwrap_or(Value::Null);
+    let timestamp = DateTime::parse_from_rfc3339(&qr.timestamp)
+        .map(|d| d.with_timezone(&Utc))
+        .unwrap_or_else(|_| Utc::now());
+    let summary = summarize(&qr.event_type, &v);
+    AuditRow {
+        timestamp,
+        event_type: qr.event_type,
+        project: qr.project,
+        summary,
+        raw_json: qr.raw_json,
     }
 }
 
