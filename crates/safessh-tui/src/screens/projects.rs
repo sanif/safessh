@@ -148,6 +148,13 @@ impl ProjectsScreen {
         Ok(created)
     }
 
+    /// Name of the currently-highlighted project, if any. `None` when
+    /// the project list is empty (e.g. fresh install). Used by the TUI
+    /// `e` (edit) keybind to skip the picker step in the CLI flow.
+    pub fn selected_name(&self) -> Option<String> {
+        self.names.get(self.selected).cloned()
+    }
+
     pub fn reload(&mut self) -> Result<()> {
         let store = ProjectStore::new(self.paths.clone());
         self.names = store.list().unwrap_or_default();

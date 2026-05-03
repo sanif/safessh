@@ -45,20 +45,16 @@ pub fn add(store: &ProjectStore) -> Result<()> {
         .interact_text()
         .map_err(io_to_err)?;
 
-    let kind_labels = [
-        "Use an existing ~/.ssh/config alias",
-        "Set host / user / port myself",
-    ];
-    let kind = Select::with_theme(&theme)
-        .with_prompt("How would you like to set up the target?")
-        .items(&kind_labels)
-        .default(0)
+    let has_alias = Confirm::with_theme(&theme)
+        .with_prompt("Do you already have a ~/.ssh/config alias for this host?")
+        .default(false)
         .interact()
         .map_err(io_to_err)?;
 
-    let target = match kind {
-        0 => prompt_ssh_config_target(store, &theme, "default")?,
-        _ => prompt_inline_target(&theme, "default")?,
+    let target = if has_alias {
+        prompt_ssh_config_target(store, &theme, "default")?
+    } else {
+        prompt_inline_target(&theme, "default")?
     };
 
     let project = Project {
@@ -232,7 +228,7 @@ fn prompt_ssh_config_target(
 
 fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Target> {
     let host: String = Input::with_theme(theme)
-        .with_prompt("Hostname (e.g. db.internal)")
+        .with_prompt("Hostname (e.g. 10.0.0.x, db.internal, prod-web.example.com)")
         .validate_with(|s: &String| -> std::result::Result<(), &str> {
             if s.trim().is_empty() {
                 Err("looks empty — try a hostname")
@@ -261,12 +257,12 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
         .map_err(io_to_err)?;
 
     let identity_file = if Confirm::with_theme(theme)
-        .with_prompt("Use a private key file?")
+        .with_prompt("Use a private key for this host?")
         .default(false)
         .interact()
         .map_err(io_to_err)?
     {
-        Some(prompt_ssh_key_path(theme)?)
+        Some(prompt_ssh_key_location(theme)?)
     } else {
         None
     };
@@ -297,10 +293,33 @@ fn prompt_inline_target(theme: &ColorfulTheme, target_name: &str) -> Result<Targ
     })
 }
 
-/// Pick a private key. Discovers candidates in `~/.ssh/` (skipping `.pub`,
-/// `known_hosts`, `config`, `authorized_keys`) and offers a manual-path
-/// fallback at the bottom of the list. Tilde paths are expanded.
-fn prompt_ssh_key_path(theme: &ColorfulTheme) -> Result<PathBuf> {
+/// Sub-menu for the "Use a private key?" yes-branch. Three escape hatches
+/// covering the common locations: the conventional `~/.ssh/` directory,
+/// arbitrary folders (with a hand-rolled directory navigator), and a typed
+/// path. The returned `PathBuf` is always made absolute via `canonicalize`
+/// (or, if that fails, by joining `current_dir` with relative input) so the
+/// project file keeps working when the user `cd`s elsewhere later.
+fn prompt_ssh_key_location(theme: &ColorfulTheme) -> Result<PathBuf> {
+    let labels = ["Pick from ~/.ssh/", "Browse another folder", "Paste a path"];
+    let choice = Select::with_theme(theme)
+        .with_prompt("Where's the key?")
+        .items(&labels)
+        .default(0)
+        .interact()
+        .map_err(io_to_err)?;
+    let raw = match choice {
+        0 => pick_from_ssh_dir(theme)?,
+        1 => browse_for_file(theme)?,
+        _ => paste_a_path(theme)?,
+    };
+    Ok(canonicalize_path(&raw))
+}
+
+/// Fuzzy-pick a private key from `~/.ssh/`, skipping `.pub`, `known_hosts`,
+/// `config`, `authorized_keys`, and dotfiles. If the directory has no
+/// candidates the caller gets an `Error::Config` with a hint to try a
+/// different sub-menu choice.
+fn pick_from_ssh_dir(theme: &ColorfulTheme) -> Result<PathBuf> {
     let home = home_dir();
     let ssh_dir = home.join(".ssh");
     let mut candidates: Vec<PathBuf> = vec![];
@@ -323,36 +342,114 @@ fn prompt_ssh_key_path(theme: &ColorfulTheme) -> Result<PathBuf> {
         }
     }
     candidates.sort();
-
-    let mut items: Vec<String> = candidates.iter().map(|p| display_path(p)).collect();
-    items.push("I'll paste a path instead...".to_string());
-
+    if candidates.is_empty() {
+        return Err(Error::Config(
+            "no key files in ~/.ssh/ — try \"Browse another folder\" or \"Paste a path\" instead"
+                .into(),
+        ));
+    }
+    let labels: Vec<String> = candidates.iter().map(|p| display_path(p)).collect();
     let idx = FuzzySelect::with_theme(theme)
-        .with_prompt("Pick a key (type to filter, or pick the last entry to paste a path)")
-        .items(&items)
+        .with_prompt("Pick a key from ~/.ssh/ (type to filter)")
+        .items(&labels)
         .default(0)
         .interact()
         .map_err(io_to_err)?;
+    Ok(candidates[idx].clone())
+}
 
-    if idx == items.len() - 1 {
-        let s: String = Input::with_theme(theme)
-            .with_prompt("Path to your key")
-            .validate_with(|s: &String| -> std::result::Result<(), &str> {
-                let expanded = expand_tilde(s);
-                if !expanded.exists() {
-                    return Err("can't find that file (or it's not readable)");
-                }
-                if !expanded.is_file() {
-                    return Err("that's not a regular file");
-                }
-                Ok(())
-            })
-            .interact_text()
+/// Hand-rolled directory navigator over `dialoguer::FuzzySelect`. Starts at
+/// the current working directory (so a key sitting next to where the user
+/// invoked `safessh` is the very first thing on the screen) and lets them
+/// step in/out of folders until they pick a regular file. Dotfiles and
+/// dot-directories are hidden — paste-a-path is the escape hatch for those.
+/// Directories sort before files; entries within each group sort
+/// alphabetically.
+fn browse_for_file(theme: &ColorfulTheme) -> Result<PathBuf> {
+    let mut current = std::env::current_dir().unwrap_or_else(|_| home_dir());
+    loop {
+        // (label, target_path, is_dir)
+        let mut items: Vec<(String, PathBuf, bool)> = Vec::new();
+        if let Some(parent) = current.parent() {
+            items.push(("../".to_string(), parent.to_path_buf(), true));
+        }
+        let mut entries: Vec<(String, PathBuf, bool)> = Vec::new();
+        if let Ok(rd) = std::fs::read_dir(&current) {
+            for e in rd.flatten() {
+                let p = e.path();
+                let name = match p.file_name().and_then(|s| s.to_str()) {
+                    Some(n) if !n.starts_with('.') => n.to_string(),
+                    _ => continue,
+                };
+                let is_dir = p.is_dir();
+                let label = if is_dir { format!("{name}/") } else { name };
+                entries.push((label, p, is_dir));
+            }
+        }
+        entries.sort_by(|a, b| match (a.2, b.2) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.0.cmp(&b.0),
+        });
+        items.extend(entries);
+        if items.is_empty() {
+            return Err(Error::Config(format!(
+                "couldn't read {} — try \"Paste a path\" instead",
+                display_path(&current)
+            )));
+        }
+        let labels: Vec<String> = items.iter().map(|(l, _, _)| l.clone()).collect();
+        let prompt = format!("Browse: {}", display_path(&current));
+        let idx = FuzzySelect::with_theme(theme)
+            .with_prompt(prompt)
+            .items(&labels)
+            .default(0)
+            .interact()
             .map_err(io_to_err)?;
-        Ok(expand_tilde(&s))
-    } else {
-        Ok(candidates[idx].clone())
+        let (_, picked, is_dir) = items.remove(idx);
+        if is_dir {
+            current = picked;
+            continue;
+        }
+        return Ok(picked);
     }
+}
+
+/// Free-text path with tilde expansion and existence check. Relative paths
+/// are resolved against the current working directory so a user sitting in
+/// `~/Workspace/cureocity/` can type `cureocity-live.pem` without the leading
+/// `./`.
+fn paste_a_path(theme: &ColorfulTheme) -> Result<PathBuf> {
+    let s: String = Input::with_theme(theme)
+        .with_prompt("Path to your key (absolute, relative, or starting with ~)")
+        .validate_with(|s: &String| -> std::result::Result<(), &str> {
+            let resolved = resolve_input_path(s);
+            if !resolved.exists() {
+                return Err("can't find that file (or it's not readable)");
+            }
+            if !resolved.is_file() {
+                return Err("that's not a regular file");
+            }
+            Ok(())
+        })
+        .interact_text()
+        .map_err(io_to_err)?;
+    Ok(resolve_input_path(&s))
+}
+
+fn resolve_input_path(s: &str) -> PathBuf {
+    let expanded = expand_tilde(s);
+    if expanded.is_absolute() {
+        expanded
+    } else {
+        std::env::current_dir()
+            .map(|d| d.join(&expanded))
+            .unwrap_or(expanded)
+    }
+}
+
+fn canonicalize_path(p: &Path) -> PathBuf {
+    p.canonicalize().unwrap_or_else(|_| p.to_path_buf())
 }
 
 fn add_target_to(
@@ -379,63 +476,17 @@ fn add_target_to(
         .interact_text()
         .map_err(io_to_err)?;
 
-    let kind = Select::with_theme(theme)
-        .with_prompt("How would you like to set up this target?")
-        .items(&[
-            "Use an existing ~/.ssh/config alias",
-            "Set host / user / port myself",
-        ])
-        .default(0)
+    let has_alias = Confirm::with_theme(theme)
+        .with_prompt("Do you already have a ~/.ssh/config alias for this host?")
+        .default(false)
         .interact()
         .map_err(io_to_err)?;
 
-    let target = if kind == 0 {
-        let snap_paths = safessh_storage::paths::Paths::user().map_err(Error::Io)?;
-        let snap = SshConfigSnapshot::load(&snap_paths)?;
-        if snap.aliases.is_empty() {
-            return Err(Error::Config(
-                "couldn't find any Host blocks in ~/.ssh/config".into(),
-            ));
-        }
-        let labels: Vec<String> = snap.aliases.iter().map(|a| a.alias.clone()).collect();
-        let mode = Select::with_theme(theme)
-            .with_prompt("How should safessh use this alias?")
-            .items(&[
-                "Live link — re-reads ~/.ssh/config on every exec",
-                "Snapshot — copies host/user/port now, ignores later edits",
-            ])
-            .default(0)
-            .interact()
-            .map_err(io_to_err)?;
-        let idx = FuzzySelect::with_theme(theme)
-            .with_prompt("Which alias? (type to filter)")
-            .items(&labels)
-            .default(0)
-            .interact()
-            .map_err(io_to_err)?;
-        let entry = &snap.aliases[idx];
-        if mode == 0 {
-            Target::SshConfigAlias {
-                name: target_name,
-                ssh_config_alias: entry.alias.clone(),
-            }
-        } else {
-            Target::Inline {
-                name: target_name,
-                host: entry
-                    .hostname
-                    .clone()
-                    .unwrap_or_else(|| entry.alias.clone()),
-                port: entry.port.unwrap_or(22),
-                user: entry
-                    .user
-                    .clone()
-                    .unwrap_or_else(|| std::env::var("USER").unwrap_or_default()),
-                identity_file: entry.identity_file.clone(),
-                proxy_jump: None,
-                keychain_secret: None,
-            }
-        }
+    let target = if has_alias {
+        let project_store = safessh_storage::project::ProjectStore::new(
+            safessh_storage::paths::Paths::user().map_err(Error::Io)?,
+        );
+        prompt_ssh_config_target(&project_store, theme, &target_name)?
     } else {
         prompt_inline_target(theme, &target_name)?
     };

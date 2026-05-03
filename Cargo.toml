@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT OR Apache-2.0"
@@ -21,13 +21,13 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Internal
-safessh-core    = { path = "crates/safessh-core",    version = "0.4.3" }
-safessh-storage = { path = "crates/safessh-storage", version = "0.4.3" }
-safessh-policy  = { path = "crates/safessh-policy",  version = "0.4.3" }
-safessh-audit   = { path = "crates/safessh-audit",   version = "0.4.3" }
-safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.4.3" }
-safessh-skill   = { path = "crates/safessh-skill",   version = "0.4.3" }
-safessh-tui     = { path = "crates/safessh-tui",     version = "0.4.3" }
+safessh-core    = { path = "crates/safessh-core",    version = "0.4.4" }
+safessh-storage = { path = "crates/safessh-storage", version = "0.4.4" }
+safessh-policy  = { path = "crates/safessh-policy",  version = "0.4.4" }
+safessh-audit   = { path = "crates/safessh-audit",   version = "0.4.4" }
+safessh-ssh     = { path = "crates/safessh-ssh",     version = "0.4.4" }
+safessh-skill   = { path = "crates/safessh-skill",   version = "0.4.4" }
+safessh-tui     = { path = "crates/safessh-tui",     version = "0.4.4" }
 
 # Common
 serde       = { version = "1", features = ["derive"] }
