@@ -12,6 +12,35 @@ fn agents_md_snapshot() {
 }
 
 #[test]
+fn cursor_format_snapshot() {
+    let body = "Hello world.\n";
+    let formatted = safessh_skill::adapters::format(safessh_skill::adapters::Target::Cursor, body);
+    insta::assert_snapshot!(formatted);
+}
+
+#[test]
+fn gemini_cli_format_snapshot() {
+    let body = "Hello world.\n";
+    let formatted =
+        safessh_skill::adapters::format(safessh_skill::adapters::Target::GeminiCli, body);
+    insta::assert_snapshot!(formatted);
+}
+
+#[test]
+fn codex_format_snapshot() {
+    let body = "Hello world.\n";
+    let formatted = safessh_skill::adapters::format(safessh_skill::adapters::Target::Codex, body);
+    insta::assert_snapshot!(formatted);
+}
+
+#[test]
+fn plain_format_snapshot() {
+    let body = "Hello world.";
+    let formatted = safessh_skill::adapters::format(safessh_skill::adapters::Target::Plain, body);
+    insta::assert_snapshot!(formatted);
+}
+
+#[test]
 fn filenames_are_correct() {
     assert_eq!(filename(Target::ClaudeCode), "safessh.md");
     assert_eq!(filename(Target::AgentsMd), "AGENTS.md");

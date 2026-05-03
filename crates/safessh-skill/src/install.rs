@@ -27,7 +27,7 @@ pub enum Scope {
 /// rather than overwriting the entire file.
 pub fn install_to(target: Target, dest: &Path) -> Result<()> {
     let body = format(target, CONTENT);
-    if matches!(target, Target::AgentsMd) {
+    if matches!(target, Target::AgentsMd | Target::GeminiCli | Target::Codex) {
         return install_agents_md_section(dest, &body);
     }
     atomic::write_string(dest, &body).map_err(Error::Io)?;
@@ -35,43 +35,7 @@ pub fn install_to(target: Target, dest: &Path) -> Result<()> {
 }
 
 fn install_agents_md_section(path: &Path, body: &str) -> Result<()> {
-    let existing = std::fs::read_to_string(path).unwrap_or_default();
-    let cleaned = strip_safessh_section(&existing);
-    let combined = if cleaned.trim().is_empty() {
-        body.to_string()
-    } else {
-        format!("{}\n\n{}", cleaned.trim_end(), body)
-    };
-    atomic::write_string(path, &combined).map_err(Error::Io)?;
-    Ok(())
-}
-
-/// Remove the existing `## safessh` section from an AGENTS.md-style document.
-///
-/// Skipping starts at a line whose `trim_start()` begins with `## safessh`
-/// and stops as soon as we hit any later line starting with `## ` or `# `
-/// (which is preserved). If the file ends inside the safessh section, we
-/// simply finish with `skipping=true` and emit nothing further.
-fn strip_safessh_section(content: &str) -> String {
-    let lines: Vec<&str> = content.lines().collect();
-    let mut out = vec![];
-    let mut skipping = false;
-    for line in &lines {
-        if line.trim_start().starts_with("## safessh") {
-            skipping = true;
-            continue;
-        }
-        if skipping {
-            // Resume copying once we hit the next top-level / section header.
-            if line.starts_with("## ") || line.starts_with("# ") {
-                skipping = false;
-                out.push(*line);
-            }
-            continue;
-        }
-        out.push(*line);
-    }
-    out.join("\n")
+    crate::sections::install_md_section(path, body)
 }
 
 /// Remove the safessh skill from `dest`.
@@ -80,11 +44,8 @@ fn strip_safessh_section(content: &str) -> String {
 /// For `Target::AgentsMd`, strips only the `## safessh` section, preserving
 /// the rest of the file.
 pub fn uninstall_at(target: Target, dest: &Path) -> Result<()> {
-    if matches!(target, Target::AgentsMd) {
-        let existing = std::fs::read_to_string(dest).unwrap_or_default();
-        let cleaned = strip_safessh_section(&existing);
-        atomic::write_string(dest, cleaned.trim_end()).map_err(Error::Io)?;
-        return Ok(());
+    if matches!(target, Target::AgentsMd | Target::GeminiCli | Target::Codex) {
+        return crate::sections::uninstall_md_section(dest);
     }
     if dest.exists() {
         std::fs::remove_file(dest).map_err(Error::Io)?;
@@ -102,6 +63,10 @@ pub fn default_path(target: Target, scope: Scope, cwd: &Path) -> Option<PathBuf>
         (Target::ClaudeCode, Scope::User) => home.join(".claude/skills/safessh.md"),
         (Target::ClaudeCode, Scope::Project) => cwd.join(".claude/skills/safessh.md"),
         (Target::AgentsMd, Scope::Project) => cwd.join("AGENTS.md"),
+        (Target::Cursor, Scope::Project) => cwd.join(".cursor/rules/safessh.md"),
+        (Target::GeminiCli, Scope::User) => home.join(".gemini/GEMINI.md"),
+        (Target::GeminiCli, Scope::Project) => cwd.join("GEMINI.md"),
+        (Target::Codex, Scope::User) => home.join(".codex/AGENTS.md"),
         _ => return None,
     })
 }

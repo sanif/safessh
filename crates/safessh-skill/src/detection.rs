@@ -38,5 +38,31 @@ pub fn detect(cwd: &Path) -> Vec<Detected> {
         project_path: Some(cwd.join("AGENTS.md")),
     });
 
+    let cursor_proj = cwd.join(".cursor/rules/safessh.md");
+    out.push(Detected {
+        target: Target::Cursor,
+        user_path: None,
+        project_path: cwd.join(".cursor").exists().then_some(cursor_proj),
+    });
+
+    let gemini_user = home.join(".gemini/GEMINI.md");
+    let gemini_proj = cwd.join("GEMINI.md");
+    out.push(Detected {
+        target: Target::GeminiCli,
+        user_path: home.join(".gemini").exists().then_some(gemini_user),
+        project_path: if gemini_proj.exists() {
+            Some(gemini_proj)
+        } else {
+            None
+        },
+    });
+
+    let codex_user = home.join(".codex/AGENTS.md");
+    out.push(Detected {
+        target: Target::Codex,
+        user_path: home.join(".codex").exists().then_some(codex_user),
+        project_path: None,
+    });
+
     out
 }

@@ -46,6 +46,12 @@ pub enum Error {
     #[error("audit write failure: {0}")]
     AuditWriteFailed(String),
 
+    #[error("audit index built by newer safessh; ignoring index, JSONL is unaffected")]
+    AuditIndexNewer,
+
+    #[error("audit index error: {0}")]
+    AuditIndexFailed(String),
+
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
@@ -68,6 +74,7 @@ impl Error {
             Error::OutputCapped { .. } => 30,
             Error::Storage(_) | Error::Io(_) | Error::Serde(_) => 40,
             Error::AuditWriteFailed(_) => 50,
+            Error::AuditIndexNewer | Error::AuditIndexFailed(_) => 40,
         }
     }
 
@@ -88,6 +95,8 @@ impl Error {
             Error::Io(_) => "io",
             Error::Serde(_) => "serde",
             Error::AuditWriteFailed(_) => "audit_write_failed",
+            Error::AuditIndexNewer => "audit_index_newer",
+            Error::AuditIndexFailed(_) => "audit_index_failed",
         }
     }
 }
