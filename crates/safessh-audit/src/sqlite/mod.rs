@@ -62,7 +62,8 @@ impl Index {
         let log_path_str = log_path.to_string_lossy().to_string();
         let prior_source = read_meta_str(&conn, "source_file")?;
         if prior_source.as_deref() != Some(log_path_str.as_str()) {
-            conn.execute("DELETE FROM events", []).map_err(map_rusqlite)?;
+            conn.execute("DELETE FROM events", [])
+                .map_err(map_rusqlite)?;
             write_meta(&conn, "last_indexed_offset", "0")?;
             write_meta(&conn, "source_file", &log_path_str)?;
         }
@@ -114,9 +115,7 @@ impl Index {
         if !self.log_path.exists() {
             return Ok(0);
         }
-        let log_size = std::fs::metadata(&self.log_path)
-            .map_err(Error::Io)?
-            .len();
+        let log_size = std::fs::metadata(&self.log_path).map_err(Error::Io)?.len();
 
         let current_fingerprint = read_log_fingerprint(&self.log_path)?;
         let stored_fingerprint = read_meta_str(&self.conn, "log_fingerprint")?;

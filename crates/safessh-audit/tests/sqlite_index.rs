@@ -87,11 +87,13 @@ fn source_file_change_resets_state() {
             "INSERT INTO events(byte_offset, timestamp, event_type, raw_json) \
              VALUES(0, '2026-01-01T00:00:00Z', 'fixture', '{}')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "UPDATE meta SET value = '4242' WHERE key = 'last_indexed_offset'",
             [],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // Move the DB into a new state dir whose audit_log path differs.

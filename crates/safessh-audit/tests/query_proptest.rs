@@ -51,26 +51,21 @@ fn ev_strategy() -> impl Strategy<Value = Ev> {
         Just("exec_complete".to_string())
     ];
     let project = prop_oneof![Just("prod".to_string()), Just("dev".to_string())];
-    let target = prop::option::of(prop_oneof![
-        Just("web".to_string()),
-        Just("db".to_string())
-    ]);
+    let target = prop::option::of(prop_oneof![Just("web".to_string()), Just("db".to_string())]);
     let decision = prop::option::of(prop_oneof![
         Just("allow".to_string()),
         Just("deny".to_string()),
         Just("require_approval".to_string())
     ]);
     let exit_code = prop::option::of(0i64..=2);
-    (day, etype, project, target, decision, exit_code).prop_map(
-        |(ts, et, p, tgt, d, c)| Ev {
-            ts,
-            event_type: et,
-            project: p,
-            target: tgt,
-            decision: d,
-            exit_code: c,
-        },
-    )
+    (day, etype, project, target, decision, exit_code).prop_map(|(ts, et, p, tgt, d, c)| Ev {
+        ts,
+        event_type: et,
+        project: p,
+        target: tgt,
+        decision: d,
+        exit_code: c,
+    })
 }
 
 proptest! {
