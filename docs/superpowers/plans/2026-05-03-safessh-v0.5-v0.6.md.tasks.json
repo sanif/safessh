@@ -1,0 +1,165 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-03-safessh-v0.5-v0.6.md",
+  "tasks": [
+    {
+      "id": 0,
+      "subject": "Task 0: Workspace deps + SAFETY scaffolding",
+      "status": "pending",
+      "description": "**Goal:** Add rusqlite/refinery/humantime workspace deps; create empty sqlite + query modules in safessh-audit with SAFETY-INVARIANT-4 markers.\n\n**Files:**\n- Modify: Cargo.toml (workspace)\n- Modify: crates/safessh-audit/Cargo.toml\n- Modify: crates/safessh-audit/src/lib.rs\n- Create: crates/safessh-audit/src/sqlite/mod.rs\n- Create: crates/safessh-audit/src/sqlite/migrations/V1__initial.sql\n- Create: crates/safessh-audit/src/query.rs\n\n**Acceptance Criteria:**\n- cargo build --workspace succeeds\n- cargo clippy --workspace --all-targets -- -D warnings clean\n- safessh-audit exports pub mod sqlite + pub mod query\n- Both new files have // SAFETY-INVARIANT-4 doc comment\n\n**Verify:** `cargo build --workspace && cargo clippy --workspace --all-targets -- -D warnings`\n\n```json:metadata\n{\"files\": [\"Cargo.toml\", \"crates/safessh-audit/Cargo.toml\", \"crates/safessh-audit/src/lib.rs\", \"crates/safessh-audit/src/sqlite/mod.rs\", \"crates/safessh-audit/src/query.rs\"], \"verifyCommand\": \"cargo build --workspace && cargo clippy --workspace --all-targets -- -D warnings\", \"acceptanceCriteria\": [\"build succeeds\", \"clippy clean\", \"modules exported\", \"SAFETY markers present\"]}\n```"
+    },
+    {
+      "id": 1,
+      "subject": "Task 1: SQLite schema + Index::open_or_create + corruption recovery",
+      "status": "pending",
+      "blockedBy": [0],
+      "description": "**Goal:** Define V1 migration (events + meta + indexes); Index::open_or_create with schema_version validation, source_file change reset, and SQLITE_CORRUPT recovery via delete + rebuild.\n\n**Files:**\n- Modify: crates/safessh-audit/src/sqlite/migrations/V1__initial.sql\n- Modify: crates/safessh-audit/src/sqlite/mod.rs\n- Modify: crates/safessh-storage/src/paths.rs (audit_db method)\n- Modify: crates/safessh-core/src/error.rs (AuditIndexNewer + AuditIndexFailed variants)\n- Create: crates/safessh-audit/tests/sqlite_index.rs\n\n**Acceptance Criteria:**\n- First open creates audit.db with meta.schema_version=1, last_indexed_offset=0, source_file=<log path>\n- Second open is idempotent\n- schema_version > 1 returns Error::AuditIndexNewer\n- Truncated DB recovers via delete + rebuild\n\n**Verify:** `cargo test -p safessh-audit --test sqlite_index`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/src/sqlite/mod.rs\", \"crates/safessh-audit/src/sqlite/migrations/V1__initial.sql\", \"crates/safessh-audit/tests/sqlite_index.rs\", \"crates/safessh-storage/src/paths.rs\", \"crates/safessh-core/src/error.rs\"], \"verifyCommand\": \"cargo test -p safessh-audit --test sqlite_index\", \"acceptanceCriteria\": [\"4 tests pass\", \"newer schema returns typed error\", \"corruption recovery works\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Catch-up loop indexes JSONL into SQLite",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Index::catch_up reads from last_indexed_offset to EOF, parses each line, extracts columns per spec §3.2.3, INSERTs in single transaction, advances offset; resets to 0 when file shrank.\n\n**Files:**\n- Modify: crates/safessh-audit/src/sqlite/mod.rs\n- Modify: crates/safessh-audit/tests/sqlite_index.rs\n\n**Acceptance Criteria:**\n- 100 events → 100 rows; offset = file length\n- target/decision/exit_code extracted from data.* paths\n- Bad JSON lines skipped; offset still advances\n- Log shrink → reset offset to 0, reindex new file\n- 10k events catch-up < 5s\n\n**Verify:** `cargo test -p safessh-audit --test sqlite_index`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/src/sqlite/mod.rs\", \"crates/safessh-audit/tests/sqlite_index.rs\"], \"verifyCommand\": \"cargo test -p safessh-audit --test sqlite_index\", \"acceptanceCriteria\": [\"catch-up indexes events\", \"rotation handled\", \"parse errors don't block\", \"10k under 5s\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Filter struct + query API",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** query::Filters and query() build SQL from AND-combined filters; ORDER BY timestamp DESC; default limit 100, 0 = unlimited; calls catch_up first (lazy contract).\n\n**Files:**\n- Modify: crates/safessh-audit/src/query.rs\n- Create: crates/safessh-audit/tests/query.rs\n\n**Acceptance Criteria:**\n- All filter dimensions tested (project, event_type, target, decision, exit_code, since, until, grep, limit)\n- timestamp DESC ordering\n- limit=0 means unlimited\n- grep is substring match against raw_json\n\n**Verify:** `cargo test -p safessh-audit --test query`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/src/query.rs\", \"crates/safessh-audit/tests/query.rs\"], \"verifyCommand\": \"cargo test -p safessh-audit --test query\", \"acceptanceCriteria\": [\"8 filter tests pass\", \"ordering verified\", \"lazy catch-up integrated\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Property test query equivalence with brute-force scan",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** proptest verifying that for any random sequence of valid AuditEvent JSON, query() returns the same set as a brute-force JSONL scan.\n\n**Files:**\n- Modify: Cargo.toml + crates/safessh-audit/Cargo.toml (proptest dep)\n- Create: crates/safessh-audit/tests/query_proptest.rs\n\n**Acceptance Criteria:**\n- 64+ proptest cases pass\n- Equivalence verified across project filter\n\n**Verify:** `cargo test -p safessh-audit --test query_proptest`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/tests/query_proptest.rs\"], \"verifyCommand\": \"cargo test -p safessh-audit --test query_proptest\", \"acceptanceCriteria\": [\"proptest passes 64 cases\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Additive data.target field on exec events",
+      "status": "pending",
+      "blockedBy": [0],
+      "description": "**Goal:** Extend exec_attempt + exec_complete signatures with optional target arg (Option<&str>); thread resolved target name through exec.rs call sites; data.target absent when None.\n\n**Files:**\n- Modify: crates/safessh-audit/src/event.rs\n- Modify: crates/safessh-cli/src/commands/exec.rs\n\n**Acceptance Criteria:**\n- data.target appears in exec event JSON when target is known\n- decide_and_record receives target_name parameter\n- All audit + cli tests pass\n\n**Verify:** `cargo test -p safessh-audit && cargo test -p safessh-cli`\n\n```json:metadata\n{\"files\": [\"crates/safessh-audit/src/event.rs\", \"crates/safessh-cli/src/commands/exec.rs\"], \"verifyCommand\": \"cargo test -p safessh-audit && cargo test -p safessh-cli\", \"acceptanceCriteria\": [\"target field emitted\", \"all tests pass\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: CLI flags + filter parsing for audit query",
+      "status": "pending",
+      "blockedBy": [3, 5],
+      "description": "**Goal:** Extend AuditCmd::Query with all new flags; parsers for duration/RFC3339 and N..M ranges; bad input → exit 30.\n\n**Files:**\n- Modify: crates/safessh-cli/src/cli.rs\n- Modify: crates/safessh-cli/src/main.rs\n- Modify: crates/safessh-cli/src/commands/audit.rs\n\n**Acceptance Criteria:**\n- All new flags parsed (--since, --until, --limit, --decision, --exit-code, --target, --format)\n- Duration like \"7d\" / \"24h\" parsed; RFC3339 parsed; bad input → Error::Usage\n- exit-code N or N..M parsed; lo > hi rejected\n- since > until rejected\n\n**Verify:** `cargo test -p safessh-cli audit`\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/cli.rs\", \"crates/safessh-cli/src/main.rs\", \"crates/safessh-cli/src/commands/audit.rs\"], \"verifyCommand\": \"cargo test -p safessh-cli audit\", \"acceptanceCriteria\": [\"5 unit tests pass\", \"--help shows all new flags\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 7: SQLite-backed audit query body + log-scan fallback",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "**Goal:** Wire audit::run to call Index::open_or_create + query(); format results per --format (jsonl/table/count); on SQLite failure print stderr warning and fall back to JSONL line scan.\n\n**Files:**\n- Modify: crates/safessh-cli/src/commands/audit.rs\n\n**Acceptance Criteria:**\n- No-flag query prints all events as JSONL, newest first, capped at 100\n- --format count prints just N\n- --format table prints fixed-width columns\n- SQLite failure → stderr warning + log-scan fallback\n- Missing log → 0 results, exit 0\n\n**Verify:** Manual e2e in tempdir SAFESSH_HOME with all three formats\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/audit.rs\"], \"verifyCommand\": \"cargo build --workspace && cargo test -p safessh-cli\", \"acceptanceCriteria\": [\"all formats work\", \"fallback path runs\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 8: TUI audit screen — SQLite-backed query + new filters",
+      "status": "pending",
+      "blockedBy": [7],
+      "description": "**Goal:** Replace audit screen ring buffer with windowed SQL query; on FsEvent::AuditAppended re-run catch_up + query; add since/until/decision/exit_code/target filter fields; show \"n shown / N total\"; fall back to JSONL tail when SQLite unavailable.\n\n**Files:**\n- Modify: crates/safessh-tui/src/screens/audit.rs\n- Modify: crates/safessh-tui/Cargo.toml (add safessh-audit dep)\n- Modify: crates/safessh-tui/tests (snapshot test)\n\n**Acceptance Criteria:**\n- 500-event fixture renders without 200-event cap\n- Filter edits trigger requery\n- Live tail still picks up new events\n- Fallback to JSONL when audit.db missing\n\n**Verify:** `cargo test -p safessh-tui` + manual TUI smoke\n\n```json:metadata\n{\"files\": [\"crates/safessh-tui/src/screens/audit.rs\", \"crates/safessh-tui/Cargo.toml\"], \"verifyCommand\": \"cargo test -p safessh-tui\", \"acceptanceCriteria\": [\"new snapshot passes\", \"filter wiring works\", \"fallback mode works\"]}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 9: docs/audit.md schema reference + recipes",
+      "status": "pending",
+      "blockedBy": [7],
+      "description": "**Goal:** Author docs/audit.md covering JSONL schema (per event type), SQLite schema (DDL), audit query examples covering all flags, recovery recipes.\n\n**Files:**\n- Create: docs/audit.md\n\n**Acceptance Criteria:**\n- All 12 event types documented with data.* fields\n- V1 SQLite DDL included\n- 8+ audit query invocation examples\n- Corruption-recovery recipe (rm audit.db)\n\n**Verify:** Manual review\n\n```json:metadata\n{\"files\": [\"docs/audit.md\"], \"verifyCommand\": \"ls docs/audit.md\", \"acceptanceCriteria\": [\"covers all event types\", \"covers all flags\", \"recovery documented\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 10: Section helper refactor (sections.rs)",
+      "status": "pending",
+      "description": "**Goal:** Extract AGENTS.md section logic into shared safessh-skill::sections module (install_md_section, uninstall_md_section, strip_section); migrate Target::AgentsMd to use it. No behavior change.\n\n**Files:**\n- Create: crates/safessh-skill/src/sections.rs\n- Modify: crates/safessh-skill/src/lib.rs\n- Modify: crates/safessh-skill/src/install.rs\n- Modify: crates/safessh-skill/tests/install.rs\n\n**Acceptance Criteria:**\n- Shared helper installs idempotent section\n- Uninstall preserves neighbors\n- All existing skill tests pass unchanged\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/sections.rs\", \"crates/safessh-skill/src/lib.rs\", \"crates/safessh-skill/src/install.rs\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"existing tests pass\", \"section helper extracted\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 11: Cursor adapter",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Add Target::Cursor with frontmatter format (description/globs/alwaysApply); project-scope-only install at .cursor/rules/safessh.md; detection on .cursor existence.\n\n**Files:**\n- Create: crates/safessh-skill/src/adapters/cursor.rs\n- Modify: crates/safessh-skill/src/adapters/mod.rs\n- Modify: crates/safessh-skill/src/install.rs\n- Modify: crates/safessh-skill/src/detection.rs\n- Modify: crates/safessh-skill/tests/adapters.rs (+ snapshot)\n\n**Acceptance Criteria:**\n- format() emits cursor frontmatter\n- default_path returns Some only for Project scope\n- Detection returns project_path when .cursor exists\n- Snapshot test captures formatted output\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/adapters/cursor.rs\", \"crates/safessh-skill/src/adapters/mod.rs\", \"crates/safessh-skill/src/install.rs\", \"crates/safessh-skill/src/detection.rs\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"snapshot accepted\", \"Project-scope only\", \"detection works\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 12: Gemini-CLI adapter",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Add Target::GeminiCli (section-style) for ~/.gemini/GEMINI.md (user) and cwd/GEMINI.md (project). Reuse agents_md format. Section helper handles install/uninstall.\n\n**Files:**\n- Create: crates/safessh-skill/src/adapters/gemini_cli.rs\n- Modify: crates/safessh-skill/src/adapters/mod.rs, install.rs, detection.rs\n- Modify: crates/safessh-skill/tests/adapters.rs (+ snapshot)\n\n**Acceptance Criteria:**\n- User + Project scope both supported\n- install_to delegates to section helper\n- Detection returns user_path when ~/.gemini exists\n- Snapshot test passes\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/adapters/gemini_cli.rs\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"both scopes work\", \"detection works\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 13: Codex adapter",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Add Target::Codex (section-style, user-scope only) for ~/.codex/AGENTS.md. Reuse agents_md format.\n\n**Files:**\n- Create: crates/safessh-skill/src/adapters/codex.rs\n- Modify: crates/safessh-skill/src/adapters/mod.rs, install.rs, detection.rs\n- Modify: crates/safessh-skill/tests/adapters.rs (+ snapshot)\n\n**Acceptance Criteria:**\n- User scope only (Project=None)\n- Section-style install/uninstall\n- Detection returns user_path when ~/.codex exists\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/adapters/codex.rs\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"user-only scope\", \"snapshot accepted\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 14: Plain adapter",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Add Target::Plain emitting body verbatim with trailing newline; never auto-detected; never in --target all; always requires --path.\n\n**Files:**\n- Create: crates/safessh-skill/src/adapters/plain.rs\n- Modify: crates/safessh-skill/src/adapters/mod.rs\n- Modify: crates/safessh-skill/tests/adapters.rs (+ snapshot)\n\n**Acceptance Criteria:**\n- format() returns body verbatim with trailing newline\n- default_path returns None for all scopes\n- No detection entry\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/adapters/plain.rs\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"verbatim emission\", \"snapshot accepted\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 15: CLI parse_target + --target all matrix",
+      "status": "pending",
+      "blockedBy": [11, 12, 13, 14],
+      "description": "**Goal:** parse_target accepts all 6 names; --target all walks the supported (target, scope) matrix from spec §4.3, skipping unsupported pairs with stderr note; reject --target plain unless --scope path.\n\n**Files:**\n- Modify: crates/safessh-cli/src/commands/skill.rs\n- Modify: crates/safessh-cli/src/cli.rs\n\n**Acceptance Criteria:**\n- parse_target accepts claude-code, agents-md, cursor, gemini-cli, codex, plain, all\n- --target all --scope user installs claude-code(user), gemini-cli(user), codex(user)\n- --target all --scope project installs claude-code, agents-md, cursor, gemini-cli (all project)\n- --target plain without --scope path → usage error\n\n**Verify:** Manual e2e\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/skill.rs\", \"crates/safessh-cli/src/cli.rs\"], \"verifyCommand\": \"cargo test -p safessh-cli\", \"acceptanceCriteria\": [\"matrix walks correctly\", \"plain rejection works\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 16: safessh skill update",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Add Update subcommand. Walks (target,scope) matrix; rewrites only existing files (or sections); --dry-run prints unified diff (similar crate); --target repeatable; --scope user|project|both default both.\n\n**Files:**\n- Modify: crates/safessh-cli/src/cli.rs (UpdateScope, DetectFormat enums)\n- Modify: crates/safessh-cli/src/main.rs\n- Modify: crates/safessh-cli/src/commands/skill.rs\n- Create: crates/safessh-cli/src/commands/skill_helper.rs\n- Modify: crates/safessh-skill/src/sections.rs (export preview_strip)\n- Modify: workspace + cli Cargo.toml (similar dep)\n\n**Acceptance Criteria:**\n- Only existing files rewritten; non-installed paths skipped\n- --dry-run prints unified diff per outdated file\n- --target/--scope filters work\n- Exit 0 even with zero updates; stderr note when none found\n\n**Verify:** Manual e2e\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/skill.rs\", \"crates/safessh-cli/src/commands/skill_helper.rs\"], \"verifyCommand\": \"cargo build --workspace\", \"acceptanceCriteria\": [\"update only touches existing files\", \"dry-run shows diff\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 17: safessh skill detect",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Implement Detect subcommand printing per-target rows in table or JSON; status values cover not-detected/detected-not-installed/installed-current/installed-drift/section-present/requires-path.\n\n**Files:**\n- Modify: crates/safessh-cli/src/commands/skill.rs\n\n**Acceptance Criteria:**\n- Table format: 6 targets × supported scopes\n- --format json emits structured array\n- Status correctly identifies installed/drift/not-detected\n- Plain row marked \"requires --path\"\n\n**Verify:** Manual e2e\n\n```json:metadata\n{\"files\": [\"crates/safessh-cli/src/commands/skill.rs\"], \"verifyCommand\": \"cargo build --workspace\", \"acceptanceCriteria\": [\"table prints\", \"json prints\", \"all targets covered\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 18: Skill markdown content update for v0.5/v0.6",
+      "status": "pending",
+      "blockedBy": [7, 15, 16, 17],
+      "description": "**Goal:** Update crates/safessh-skill/src/content/safessh.md to document audit query --since/--until/--decision/--exit-code/--target/--limit/--format and skill install/update/detect / --target all. Re-accept snapshot tests.\n\n**Files:**\n- Modify: crates/safessh-skill/src/content/safessh.md\n- Modify: crates/safessh-skill/tests/snapshots/* (re-accept)\n\n**Acceptance Criteria:**\n- Audit query section with 3+ examples\n- Skill install/update/detect documented\n- cargo insta accept then test passes\n\n**Verify:** `cargo test -p safessh-skill`\n\n```json:metadata\n{\"files\": [\"crates/safessh-skill/src/content/safessh.md\"], \"verifyCommand\": \"cargo test -p safessh-skill\", \"acceptanceCriteria\": [\"new content documented\", \"snapshots updated\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 19: Update CLI reference, skill docs, README, development docs",
+      "status": "pending",
+      "blockedBy": [7, 8, 9, 15, 16, 17],
+      "description": "**Goal:** Document new flags in docs/cli-reference.md; refresh docs/skill.md for new adapters/commands; update README.md features-table rows for v0.5/v0.6; note rusqlite bundled C-compiler requirement in docs/development.md.\n\n**Files:**\n- Modify: docs/cli-reference.md\n- Modify: docs/skill.md\n- Modify: docs/development.md\n- Modify: README.md\n\n**Acceptance Criteria:**\n- cli-reference covers new audit query flags + skill update/detect\n- skill.md lists all 6 adapters\n- README features-table rows updated to \"Available in v0.5/v0.6\"\n- development.md mentions rusqlite C-compiler need\n\n**Verify:** Manual review\n\n```json:metadata\n{\"files\": [\"docs/cli-reference.md\", \"docs/skill.md\", \"docs/development.md\", \"README.md\"], \"verifyCommand\": \"ls docs/\", \"acceptanceCriteria\": [\"all docs updated\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 20: v0.5.0 release rehearsal — bump versions, CHANGELOG, RELEASE-CHECKLIST",
+      "status": "pending",
+      "blockedBy": [18, 19],
+      "description": "**Goal:** Bump workspace + per-crate versions to 0.5.0; CHANGELOG ## 0.5.0 entry; RELEASE-CHECKLIST stamp. Don't merge yet.\n\n**Files:**\n- Modify: Cargo.toml\n- Modify: Cargo.lock\n- Modify: CHANGELOG.md\n- Modify: docs/RELEASE-CHECKLIST.md\n\n**Acceptance Criteria:**\n- Every crate version reads 0.5.0\n- CHANGELOG has ## 0.5.0 entry\n- RELEASE-CHECKLIST has v0.5.0 row\n- cargo test --workspace clean\n\n**Verify:** `cargo build --workspace && cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`\n\n```json:metadata\n{\"files\": [\"Cargo.toml\", \"Cargo.lock\", \"CHANGELOG.md\", \"docs/RELEASE-CHECKLIST.md\"], \"verifyCommand\": \"cargo build --workspace && cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings\", \"acceptanceCriteria\": [\"all 0.5.0\", \"tests pass\", \"clippy clean\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 21: v0.6.0 release rehearsal — bump versions, CHANGELOG, RELEASE-CHECKLIST",
+      "status": "pending",
+      "blockedBy": [20],
+      "description": "**Goal:** Bump versions to 0.6.0 immediately after v0.5.0; second CHANGELOG entry above 0.5.0; second RELEASE-CHECKLIST stamp.\n\n**Files:**\n- Modify: Cargo.toml\n- Modify: Cargo.lock\n- Modify: CHANGELOG.md\n- Modify: docs/RELEASE-CHECKLIST.md\n\n**Acceptance Criteria:**\n- Every crate version reads 0.6.0\n- CHANGELOG ## 0.6.0 above 0.5.0\n- Both v0.5.0 and v0.6.0 rows in RELEASE-CHECKLIST\n- cargo test --workspace clean\n\n**Verify:** `cargo build --workspace && cargo test --workspace`\n\n```json:metadata\n{\"files\": [\"Cargo.toml\", \"Cargo.lock\", \"CHANGELOG.md\", \"docs/RELEASE-CHECKLIST.md\"], \"verifyCommand\": \"cargo build --workspace && cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings\", \"acceptanceCriteria\": [\"all 0.6.0\", \"both versions stamped\"]}\n```"
+    },
+    {
+      "id": 22,
+      "subject": "Task 22: Merge to develop, then main; tag both releases",
+      "status": "pending",
+      "blockedBy": [21],
+      "description": "**Goal:** Merge feature/v0.5-v0.6 → develop (PR), then develop → main; push two tags v0.5.0 and v0.6.0 so cargo-dist produces two GitHub releases. Back-merge main → develop.\n\n**Acceptance Criteria:**\n- PR opened/merged feature/v0.5-v0.6 → develop\n- develop → main merge complete\n- Tags v0.5.0 and v0.6.0 pushed\n- Back-merge main → develop\n\n**Verify:** `git tag --list 'v0.[56].*'` lists both\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"git tag --list 'v0.[56].*'\", \"acceptanceCriteria\": [\"both tags pushed\", \"develop back-merged\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-03T00:00:00Z"
+}
