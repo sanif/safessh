@@ -8,36 +8,64 @@ pub use safessh_core::types::AuditEvent;
 use safessh_core::types::{ParsedCommand, PolicyDecision};
 use serde_json::json;
 
-/// Build an `exec_attempt` audit event.
-pub fn exec_attempt(project: &str, parsed: &ParsedCommand, decision: &str) -> AuditEvent {
+/// Build an `exec_attempt` audit event. `target` is the resolved target name
+/// (when known) so `audit query --target` can match exec events. The field is
+/// additive: omitted from the emitted JSON when `None`, so older lines without
+/// it still parse fine and `schema_version` stays at 1.
+pub fn exec_attempt(
+    project: &str,
+    parsed: &ParsedCommand,
+    decision: &str,
+    target: Option<&str>,
+) -> AuditEvent {
     let mut e = AuditEvent::new("exec_attempt");
     e.project = Some(project.into());
-    e.data = json!({
-        "raw": parsed.raw,
-        "binary": parsed.binary,
-        "flags": parsed.flags,
-        "args": parsed.args,
-        "decision": decision,
-    });
+    let mut data = serde_json::Map::new();
+    data.insert("raw".into(), serde_json::Value::String(parsed.raw.clone()));
+    data.insert(
+        "binary".into(),
+        serde_json::Value::String(parsed.binary.clone()),
+    );
+    data.insert(
+        "flags".into(),
+        serde_json::to_value(&parsed.flags).unwrap_or_default(),
+    );
+    data.insert(
+        "args".into(),
+        serde_json::to_value(&parsed.args).unwrap_or_default(),
+    );
+    data.insert(
+        "decision".into(),
+        serde_json::Value::String(decision.into()),
+    );
+    if let Some(t) = target {
+        data.insert("target".into(), serde_json::Value::String(t.into()));
+    }
+    e.data = serde_json::Value::Object(data);
     e
 }
 
-/// Build an `exec_complete` audit event.
+/// Build an `exec_complete` audit event. `target` is the resolved target name
+/// (when known); additive — omitted when `None`.
 pub fn exec_complete(
     project: &str,
     exit: i32,
     stdout_bytes: u64,
     stderr_bytes: u64,
     duration_ms: u64,
+    target: Option<&str>,
 ) -> AuditEvent {
     let mut e = AuditEvent::new("exec_complete");
     e.project = Some(project.into());
-    e.data = json!({
-        "exit_code": exit,
-        "stdout_bytes": stdout_bytes,
-        "stderr_bytes": stderr_bytes,
-        "duration_ms": duration_ms,
-    });
+    let mut data = serde_json::Map::new();
+    data.insert("exit_code".into(), json!(exit));
+    data.insert("stdout_bytes".into(), json!(stdout_bytes));
+    data.insert("stderr_bytes".into(), json!(stderr_bytes));
+    data.insert("duration_ms".into(), json!(duration_ms));
+    if let Some(t) = target {
+        data.insert("target".into(), serde_json::Value::String(t.into()));
+    }
+    e.data = serde_json::Value::Object(data);
     e
 }
 

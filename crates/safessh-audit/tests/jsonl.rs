@@ -48,7 +48,8 @@ fn append_writes_one_line() {
         env_mutations: vec![],
         raw: "ls /etc".into(),
     };
-    w.append(&event::exec_attempt("prod", &p, "allow")).unwrap();
+    w.append(&event::exec_attempt("prod", &p, "allow", None))
+        .unwrap();
     let raw = std::fs::read_to_string(paths.audit_log()).unwrap();
     assert_eq!(raw.lines().count(), 1);
     assert!(raw.contains("exec_attempt"));
@@ -62,7 +63,8 @@ fn redacts_aws_key_in_audit() {
         "echo AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
         vec!["AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE".into()],
     );
-    w.append(&event::exec_attempt("prod", &p, "allow")).unwrap();
+    w.append(&event::exec_attempt("prod", &p, "allow", None))
+        .unwrap();
     let raw = std::fs::read_to_string(paths.audit_log()).unwrap();
     assert!(
         !raw.contains("AKIAIOSFODNN7EXAMPLE"),
