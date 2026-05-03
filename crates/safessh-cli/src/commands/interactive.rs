@@ -70,10 +70,15 @@ where
                 return Err(Error::Usage(format!("readline failed: {other}")));
             }
         };
-        let value = if line.is_empty() {
+        // Always trim leading/trailing whitespace — pasted strings often
+        // carry stray newlines, spaces, or tabs from the source clipboard,
+        // and none of the fields we accept (hostnames, usernames, project
+        // names, paths, bastions) tolerate flanking whitespace.
+        let trimmed = line.trim();
+        let value = if trimmed.is_empty() {
             default.unwrap_or("").to_string()
         } else {
-            line
+            trimmed.to_string()
         };
         match validate(&value) {
             Ok(()) => return Ok(value),
