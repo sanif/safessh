@@ -3,6 +3,7 @@
 
 pub mod agents_md;
 pub mod claude_code;
+pub mod codex;
 pub mod cursor;
 pub mod gemini_cli;
 
@@ -17,6 +18,8 @@ pub enum Target {
     Cursor,
     /// Gemini CLI section in `GEMINI.md`.
     GeminiCli,
+    /// OpenAI Codex CLI section in `~/.codex/AGENTS.md`.
+    Codex,
 }
 
 /// Format the given canonical body for the requested target.
@@ -26,6 +29,7 @@ pub fn format(target: Target, body: &str) -> String {
         Target::AgentsMd => agents_md::format(body),
         Target::Cursor => cursor::format(body),
         Target::GeminiCli => gemini_cli::format(body),
+        Target::Codex => codex::format(body),
     }
 }
 
@@ -36,5 +40,6 @@ pub fn filename(target: Target) -> &'static str {
         Target::AgentsMd => "AGENTS.md",
         Target::Cursor => "safessh.md",
         Target::GeminiCli => "GEMINI.md",
+        Target::Codex => "AGENTS.md",
     }
 }

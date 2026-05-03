@@ -108,6 +108,13 @@ fn install(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> 
                         installed.push(format!("gemini-cli (user): {}", p.display()));
                     }
                 }
+                Target::Codex => {
+                    if let Some(p) = det.user_path.clone() {
+                        ensure_parent(&p)?;
+                        install_to(Target::Codex, &p)?;
+                        installed.push(format!("codex (user): {}", p.display()));
+                    }
+                }
             }
         }
         if installed.is_empty() {
@@ -184,6 +191,7 @@ fn check() -> Result<()> {
             Target::AgentsMd => "agents-md",
             Target::Cursor => "cursor",
             Target::GeminiCli => "gemini-cli",
+            Target::Codex => "codex",
         };
         report_path(label, "user", det.user_path.as_deref(), det.target);
         report_path(label, "project", det.project_path.as_deref(), det.target);
@@ -210,6 +218,7 @@ fn report_path(label: &str, scope: &str, path: Option<&Path>, target: Target) {
                 Target::AgentsMd => installed.contains(expected.trim_end()),
                 Target::Cursor => installed == expected,
                 Target::GeminiCli => installed.contains(expected.trim_end()),
+                Target::Codex => installed.contains(expected.trim_end()),
             };
             if same {
                 println!("[{label} {scope}] installed (current): {}", path.display());

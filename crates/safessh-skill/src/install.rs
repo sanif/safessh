@@ -27,7 +27,7 @@ pub enum Scope {
 /// rather than overwriting the entire file.
 pub fn install_to(target: Target, dest: &Path) -> Result<()> {
     let body = format(target, CONTENT);
-    if matches!(target, Target::AgentsMd | Target::GeminiCli) {
+    if matches!(target, Target::AgentsMd | Target::GeminiCli | Target::Codex) {
         return install_agents_md_section(dest, &body);
     }
     atomic::write_string(dest, &body).map_err(Error::Io)?;
@@ -44,7 +44,7 @@ fn install_agents_md_section(path: &Path, body: &str) -> Result<()> {
 /// For `Target::AgentsMd`, strips only the `## safessh` section, preserving
 /// the rest of the file.
 pub fn uninstall_at(target: Target, dest: &Path) -> Result<()> {
-    if matches!(target, Target::AgentsMd | Target::GeminiCli) {
+    if matches!(target, Target::AgentsMd | Target::GeminiCli | Target::Codex) {
         return crate::sections::uninstall_md_section(dest);
     }
     if dest.exists() {
@@ -66,6 +66,7 @@ pub fn default_path(target: Target, scope: Scope, cwd: &Path) -> Option<PathBuf>
         (Target::Cursor, Scope::Project) => cwd.join(".cursor/rules/safessh.md"),
         (Target::GeminiCli, Scope::User) => home.join(".gemini/GEMINI.md"),
         (Target::GeminiCli, Scope::Project) => cwd.join("GEMINI.md"),
+        (Target::Codex, Scope::User) => home.join(".codex/AGENTS.md"),
         _ => return None,
     })
 }

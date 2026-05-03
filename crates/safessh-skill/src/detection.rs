@@ -57,5 +57,12 @@ pub fn detect(cwd: &Path) -> Vec<Detected> {
         },
     });
 
+    let codex_user = home.join(".codex/AGENTS.md");
+    out.push(Detected {
+        target: Target::Codex,
+        user_path: home.join(".codex").exists().then_some(codex_user),
+        project_path: None,
+    });
+
     out
 }
