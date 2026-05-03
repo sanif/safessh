@@ -93,8 +93,7 @@ impl Index {
         &self.log_path
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn conn(&self) -> &Connection {
+    pub fn conn(&self) -> &Connection {
         &self.conn
     }
 
@@ -102,6 +101,143 @@ impl Index {
     pub(crate) fn conn_mut(&mut self) -> &mut Connection {
         &mut self.conn
     }
+
+    /// Read JSONL from `last_indexed_offset` to EOF and INSERT new rows.
+    /// Returns the number of rows successfully inserted (parse failures are
+    /// skipped silently, but the offset still advances).
+    ///
+    /// If the log shrank or its prefix changed (rotation/truncation),
+    /// resets offset to 0 first.
+    pub fn catch_up(&mut self) -> Result<usize> {
+        use std::io::{BufRead, BufReader, Seek, SeekFrom};
+
+        if !self.log_path.exists() {
+            return Ok(0);
+        }
+        let log_size = std::fs::metadata(&self.log_path)
+            .map_err(Error::Io)?
+            .len();
+
+        let current_fingerprint = read_log_fingerprint(&self.log_path)?;
+        let stored_fingerprint = read_meta_str(&self.conn, "log_fingerprint")?;
+
+        let mut offset = self.last_indexed_offset()?;
+        let rotated = offset > log_size
+            || stored_fingerprint
+                .as_deref()
+                .is_some_and(|f| f != current_fingerprint);
+        if rotated {
+            self.conn
+                .execute("DELETE FROM events", [])
+                .map_err(map_rusqlite)?;
+            offset = 0;
+        }
+        if offset == log_size {
+            // Still write fingerprint in case this is the first run with content.
+            write_meta(&self.conn, "log_fingerprint", &current_fingerprint)?;
+            return Ok(0);
+        }
+
+        let mut file = std::fs::File::open(&self.log_path).map_err(Error::Io)?;
+        file.seek(SeekFrom::Start(offset)).map_err(Error::Io)?;
+        let mut reader = BufReader::new(file);
+
+        let tx = self.conn.transaction().map_err(map_rusqlite)?;
+        let mut inserted = 0usize;
+        let mut current = offset;
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            let n = reader.read_line(&mut line).map_err(Error::Io)?;
+            if n == 0 {
+                break;
+            }
+            let line_offset = current;
+            current = current.saturating_add(n as u64);
+
+            let trimmed = line.trim_end_matches('\n');
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let parsed: Option<serde_json::Value> = serde_json::from_str(trimmed).ok();
+            let Some(v) = parsed else { continue };
+
+            let timestamp = v
+                .get("timestamp")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string();
+            let event_type = v
+                .get("event_type")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string();
+            let project = v.get("project").and_then(|x| x.as_str()).map(String::from);
+            let target = v
+                .get("data")
+                .and_then(|d| d.get("target"))
+                .and_then(|x| x.as_str())
+                .map(String::from);
+            let decision = v
+                .get("data")
+                .and_then(|d| d.get("decision"))
+                .and_then(|x| x.as_str())
+                .map(String::from);
+            let exit_code = v
+                .get("data")
+                .and_then(|d| d.get("exit_code"))
+                .and_then(|x| x.as_i64());
+
+            tx.execute(
+                "INSERT INTO events
+                   (byte_offset, timestamp, event_type, project, target, decision, exit_code, raw_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    line_offset as i64,
+                    timestamp,
+                    event_type,
+                    project,
+                    target,
+                    decision,
+                    exit_code,
+                    trimmed,
+                ],
+            )
+            .map_err(map_rusqlite)?;
+            inserted += 1;
+        }
+
+        tx.execute(
+            "INSERT INTO meta(key, value) VALUES('last_indexed_offset', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [current.to_string()],
+        )
+        .map_err(map_rusqlite)?;
+        tx.execute(
+            "INSERT INTO meta(key, value) VALUES('log_fingerprint', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [current_fingerprint.as_str()],
+        )
+        .map_err(map_rusqlite)?;
+        tx.commit().map_err(map_rusqlite)?;
+        Ok(inserted)
+    }
+}
+
+/// Read up to the first 256 bytes of the log file and return them hex-encoded.
+/// Used to detect rotation/truncation when file size alone is ambiguous.
+fn read_log_fingerprint(path: &std::path::Path) -> Result<String> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path).map_err(Error::Io)?;
+    let mut buf = [0u8; 256];
+    let n = f.read(&mut buf).map_err(Error::Io)?;
+    let mut hex = String::with_capacity(n * 2);
+    for b in &buf[..n] {
+        hex.push_str(&format!("{b:02x}"));
+    }
+    Ok(hex)
 }
 
 fn read_meta_int(conn: &Connection, key: &str) -> Result<Option<i64>> {
