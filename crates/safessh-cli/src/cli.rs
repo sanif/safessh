@@ -172,7 +172,28 @@ pub enum AuditCmd {
         r#type: Option<String>,
         #[arg(long, value_name = "PATTERN")]
         grep: Option<String>,
+        #[arg(long, value_name = "RFC3339|DURATION")]
+        since: Option<String>,
+        #[arg(long, value_name = "RFC3339|DURATION")]
+        until: Option<String>,
+        #[arg(long, default_value_t = 100)]
+        limit: i64,
+        #[arg(long, value_name = "allow|require_approval|deny|block")]
+        decision: Option<String>,
+        #[arg(long = "exit-code", value_name = "N|N..M")]
+        exit_code: Option<String>,
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long, value_enum, default_value_t = AuditFormat::Jsonl)]
+        format: AuditFormat,
     },
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum AuditFormat {
+    Jsonl,
+    Table,
+    Count,
 }
 
 #[derive(Subcommand, Debug)]
@@ -198,6 +219,23 @@ pub enum SkillCmd {
         target: Option<String>,
     },
     Check,
+    /// Re-render the embedded skill body and rewrite every currently-installed
+    /// copy. Non-installed pairs are silently skipped.
+    Update {
+        #[arg(long = "dry-run")]
+        dry_run: bool,
+        #[arg(long, value_name = "TARGET")]
+        target: Vec<String>,
+        #[arg(long, value_enum, default_value_t = UpdateScope::Both)]
+        scope: UpdateScope,
+    },
+    /// Print per-target detection + install status across all supported
+    /// (target, scope) combos. Output is `table` (fixed-width, default) or
+    /// `json` (LLM-friendly array).
+    Detect {
+        #[arg(long, value_enum, default_value_t = DetectFormat::Table)]
+        format: DetectFormat,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -205,4 +243,17 @@ pub enum SkillScope {
     User,
     Project,
     Path,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum UpdateScope {
+    User,
+    Project,
+    Both,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum DetectFormat {
+    Table,
+    Json,
 }

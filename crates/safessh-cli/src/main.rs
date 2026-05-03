@@ -86,8 +86,17 @@ async fn main() {
                 project,
                 r#type,
                 grep,
+                since,
+                until,
+                limit,
+                decision,
+                exit_code,
+                target,
+                format,
             } = cmd;
-            if let Err(e) = commands::audit::run(project, r#type, grep) {
+            if let Err(e) = commands::audit::run(
+                project, r#type, grep, since, until, limit, decision, exit_code, target, format,
+            ) {
                 errors::report_and_exit(e);
             }
         }

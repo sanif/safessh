@@ -95,13 +95,33 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<()> {
     // output. Each branch below appends its gating event before printing.
     let writer = AuditWriter::open(&paths)?;
 
+    // Resolve the target name eagerly so audit events on the policy path can
+    // carry `data.target`. The yolo path skips resolution (it's the explicit
+    // bypass) and emits exec_attempt/exec_complete with `target: None`.
+    let resolved_target_name: Option<String> = if yolo {
+        None
+    } else {
+        Some(
+            resolve_target(&project, on_target.as_deref())?
+                .name()
+                .to_string(),
+        )
+    };
+
     if yolo {
         // Bypass: skip the policy engine entirely. Audit the bypass with the
         // raw command so the trail still captures intent. Output framing +
         // redactor still apply below in `exec_and_frame`.
         writer.append(&event::yolo_invocation(&project_name, &raw_command))?;
     } else {
-        decide_and_record(&paths, &project, &project_name, &raw_command, &writer)?;
+        decide_and_record(
+            &paths,
+            &project,
+            &project_name,
+            &raw_command,
+            &writer,
+            resolved_target_name.as_deref(),
+        )?;
     }
 
     exec_and_frame(
@@ -111,6 +131,7 @@ pub async fn run(args: Vec<String>, yolo: bool) -> Result<()> {
         &raw_command,
         &writer,
         on_target.as_deref(),
+        resolved_target_name.as_deref(),
     )
     .await
 }
@@ -171,6 +192,7 @@ fn decide_and_record(
     project_name: &str,
     raw_command: &str,
     writer: &AuditWriter,
+    target: Option<&str>,
 ) -> Result<()> {
     let pending = PendingStore::new(paths);
     let timed = TimedStore::new(paths);
@@ -207,11 +229,8 @@ fn decide_and_record(
 
     match &decision {
         PolicyDecision::Allow { source, .. } => {
-            writer.append(&event::exec_attempt(
-                project_name,
-                &parsed,
-                &format!("{source:?}"),
-            ))?;
+            let _ = source;
+            writer.append(&event::exec_attempt(project_name, &parsed, "allow", target))?;
         }
         PolicyDecision::RequireApproval {
             token, categories, ..
@@ -267,7 +286,7 @@ fn decide_and_record(
                 }
                 // Approved (Once/Timed/Always): record the proceed decision
                 // for audit parity with the pure-Allow branch.
-                writer.append(&event::exec_attempt(project_name, &parsed, "user-approved"))?;
+                writer.append(&event::exec_attempt(project_name, &parsed, "allow", target))?;
             } else {
                 // Headless path: persist pending and return the structured
                 // deny token so an agent can call `safessh approve <token>`.
@@ -314,6 +333,7 @@ async fn exec_and_frame(
     raw_command: &str,
     writer: &AuditWriter,
     on_target: Option<&str>,
+    audit_target_name: Option<&str>,
 ) -> Result<()> {
     let target = resolve_target(project, on_target)?;
 
@@ -353,6 +373,7 @@ async fn exec_and_frame(
         result.stdout_bytes,
         result.stderr_bytes,
         result.duration_ms,
+        audit_target_name,
     ))?;
 
     if result.exit_code != 0 {

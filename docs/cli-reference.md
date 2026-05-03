@@ -266,24 +266,36 @@ safessh approve abc123def456 --block
 
 ## `safessh audit query [flags]`
 
-Read the JSONL audit log line-by-line, filter, and print matching lines verbatim.
+Query the audit log. As of v0.5 the command is backed by the SQLite index for fast filtered reads; if the index is missing or unreadable it falls back to a line-by-line scan of the JSONL log and prints `safessh: warning: audit index unavailable, falling back to log scan` to stderr.
 
 **Flags:**
 
 | Flag | Effect |
 |---|---|
 | `--project <name>` | Match only events whose `project` field equals `<name>`. |
-| `--type <event_type>` | Match only events whose `event_type` field equals `<event_type>` (e.g. `exec_attempt`, `exec_complete`, `approval_requested`, `yolo_invocation`). |
+| `--type <event_type>` | Match only events whose `event_type` field equals `<event_type>` (e.g. `exec_attempt`, `exec_complete`, `approval_requested`, `yolo_invocation`, `tunnel_close`). |
 | `--grep <pattern>` | Substring match against the raw JSONL line. |
+| `--since <when>` | Lower bound on `timestamp`. Accepts an RFC3339 timestamp (`2026-05-01T00:00:00Z`) or a humantime duration relative to now (`7d`, `24h`, `30m`). |
+| `--until <when>` | Upper bound on `timestamp`. Same accepted shapes as `--since`. Must be later than `--since` (otherwise exit 2). |
+| `--limit <N>` | Cap the number of matches returned. Default `100`. `0` is treated as no limit. |
+| `--decision <kind>` | Match `data.decision`. One of `allow`, `require_approval`, `deny`, `block`. |
+| `--exit-code <N\|N..M>` | Match `data.exit_code` exactly (`0`) or within an inclusive range (`1..255`). |
+| `--target <name>` | Match the per-event `data.target` field (the project target the event was scoped to). Recorded for `exec_*` events from v0.5 onward; older events have no target and won't match. |
+| `--format <jsonl\|table\|count>` | Output format. Default `jsonl` (raw lines, one per match). `table` prints a fixed-width view (`timestamp event_type project target decision exit`). `count` prints a single integer. |
 
-A missing audit log is treated as empty output (not an error).
+A missing audit log is not an error: `--format count` prints `0`, other formats emit nothing and exit 0.
+
+**Exit codes:** `0` on success (including empty result); `2` on invalid `--since`/`--until`/`--exit-code` syntax; `40` on storage errors that the log-scan fallback can't recover from.
 
 **Examples:**
 
 ```sh
 safessh audit query --project prod
-safessh audit query --type approval_requested
-safessh audit query --grep "destructive:db"
+safessh audit query --type approval_requested --since 7d
+safessh audit query --decision deny --since 24h --format table
+safessh audit query --exit-code 1..255 --format count
+safessh audit query --target db --type exec_complete --limit 20
+safessh audit query --grep "destructive:db" --format jsonl
 ```
 
 ## `safessh tunnels list`
@@ -335,16 +347,29 @@ Install the embedded skill for the specified agent target.
 
 | Flag | Effect |
 |---|---|
-| `--target <claude-code\|agents-md\|all>` | Required. `all` fans out across detected frameworks. |
+| `--target <name>` | Required. One of `claude-code`, `agents-md`, `cursor`, `gemini-cli`, `codex`, `plain`, or `all`. See [docs/skill.md](skill.md) for per-target install paths. |
 | `--scope <user\|project\|path>` | Where to install. Default `user`. |
-| `--path <dir>` | Required when `--scope path`. |
+| `--path <dir>` | Required when `--scope path`, and required (with `--scope path`) when `--target plain`. |
+
+**`--target all` matrix.** `all` walks the supported (target, scope) combinations and installs only those that match the supplied `--scope`. It is **not** detection-based — it always installs every supported pair, creating parent directories as needed. Pairs that have no install path for the requested scope are skipped with a stderr note.
+
+| `--scope` | Targets installed |
+|---|---|
+| `user` | `claude-code` (user), `gemini-cli` (user), `codex` (user). Skips `agents-md` and `cursor` (project-only). |
+| `project` | `claude-code` (project), `agents-md` (project), `cursor` (project), `gemini-cli` (project). Skips `codex` (user-only). |
+| `path` | Refused with exit 2 — `--target all` is incompatible with `--scope path`. |
+
+`plain` is never included in `all` and must be installed explicitly with `--scope path --path <file>`.
 
 **Examples:**
 
 ```sh
 safessh skill install --target claude-code --scope user
 safessh skill install --target agents-md --scope project
-safessh skill install --target all
+safessh skill install --target gemini-cli --scope user
+safessh skill install --target plain --scope path --path ./skill.md
+safessh skill install --target all --scope user
+safessh skill install --target all --scope project
 ```
 
 ## `safessh skill uninstall --target <target> [flags]`
@@ -364,6 +389,55 @@ Detect installed agent frameworks and report, per scope:
 - Installed but drifted (re-run `install` to refresh).
 
 Also prints the embedded-content hash so you can compare across machines.
+
+## `safessh skill update [flags]`
+
+Re-render the embedded skill body and rewrite every currently-installed copy in place. Pairs that aren't installed are silently skipped — unlike `skill install`, this does not create new files.
+
+**Flags:**
+
+| Flag | Effect |
+|---|---|
+| `--target <name>` | Restrict to one or more targets. Repeat the flag to pass multiple (`--target claude-code --target cursor`). Without it, every supported target in scope is considered. |
+| `--scope <user\|project\|both>` | Which scope(s) to walk. Default `both`. |
+| `--dry-run` | Print a unified diff per file that would change (and `(unchanged)` per file that would not), without writing anything. |
+
+For section-style targets (`agents-md`, `gemini-cli`, `codex`) the `## safessh` section is replaced cleanly; the rest of the file is preserved. For file-style targets the file is rewritten atomically. If nothing is installed, exits 0 and prints `safessh: skill: no installed copies found` to stderr. If everything is already current, prints `All installed copies are up to date.` and exits 0.
+
+**Examples:**
+
+```sh
+safessh skill update --dry-run
+safessh skill update --target claude-code --scope user
+safessh skill update --target cursor --target gemini-cli --scope project
+safessh skill update --scope both
+```
+
+## `safessh skill detect [flags]`
+
+Walk the supported (target, scope) matrix and report, for each pair, whether the framework directory exists, whether the skill is installed there, and whether the installed body is current. Unlike `skill check` (human-readable per-scope lines), `skill detect` produces a stable structured listing intended for tooling and LLM agents.
+
+**Flags:**
+
+| Flag | Effect |
+|---|---|
+| `--format <table\|json>` | Output format. Default `table` (fixed-width columns: `target scope path status`). `json` emits a pretty-printed JSON array of `{target, scope, path, status}` records. |
+
+`status` is one of:
+
+- `not detected` — the framework's parent directory does not exist (e.g., no `~/.claude` for Claude Code user scope).
+- `detected, not installed` — parent exists but the skill file/section isn't there.
+- `installed (current)` — file matches the embedded body byte-for-byte (file-style targets only).
+- `installed (section present)` — `## safessh` section matches the embedded body (section-style targets).
+- `installed (drift)` — file or section exists but doesn't match. Run `skill update` to refresh.
+- `requires --path` — emitted for `plain`, which has no default location.
+
+**Examples:**
+
+```sh
+safessh skill detect
+safessh skill detect --format json
+```
 
 ## `safessh tui`
 

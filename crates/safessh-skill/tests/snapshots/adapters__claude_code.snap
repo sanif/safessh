@@ -70,9 +70,11 @@ credentials.
 - `safessh tunnels close <id>` — close an active tunnel cooperatively
   (SIGTERMs the supervisor; falls back to SIGKILL after 5 s).
 - `safessh policy show <project>` — print the effective policy for a project.
-- `safessh audit query` — query the local audit log of past commands.
-- `safessh skill install|uninstall|check` — manage this skill's installation
-  in the user's agent frameworks.
+- `safessh audit query` — query the local audit log of past commands
+  (see *Auditing what happened* below).
+- `safessh skill install|uninstall|show|check|update|detect` — manage this
+  skill's installation in the user's agent frameworks (see *Installing the
+  skill* below).
 - `safessh tui` — launch the interactive UI. The user runs this themselves;
   the TUI requires a real terminal and exits 1 if you try to invoke it
   in a piped context.
@@ -189,3 +191,83 @@ as resolved by the SSH server.
 - **Close when done.** `safessh tunnels close <id>` ends the forward
   and writes a `tunnel_close` audit event with reason `user-close`.
   Always close before suggesting the user dismiss the session.
+
+## Auditing what happened
+
+Use `safessh audit query` to inspect past activity. **Do not read the raw
+JSONL or open the SQLite index directly** — `audit query`'s output is the
+stable contract; the on-disk schema is not. Default `--format jsonl` is one
+event per line; parses cleanly with `jq`.
+
+Filters AND together; results sort newest-first.
+
+- `--since <when>` / `--until <when>` — RFC3339 or duration (`7d`, `24h`, `30m`).
+- `--project <name>` / `--target <name>` — exact match.
+- `--type <event_type>` — `exec_attempt`, `exec_complete`, `approval_requested`,
+  `yolo_invocation`, `file_read[_complete]`, `file_write[_complete]`,
+  `tunnel_open`, `tunnel_close`.
+- `--decision allow|require_approval|deny|block` — lowercase, uniform across
+  exec and file events.
+- `--exit-code <N|N..M>` — `42` exact, `1..255` range.
+- `--limit <N>` — default 100; `0` means unlimited.
+- `--format jsonl|table|count` — default `jsonl`.
+
+Prefer structured filters over `--grep` — they hit the SQLite index;
+`--grep` is a substring scan against `raw_json`.
+
+```sh
+# Recent denials in the past week
+safessh audit query --since 7d --decision deny
+
+# Failed exec runs (any non-zero exit) on prod
+safessh audit query --project prod --type exec_complete --exit-code 1..255 --since 24h
+
+# How many approvals were issued last week
+safessh audit query --type approval_requested --since 7d --format count
+```
+
+When the user asks "what happened on the server?" or "who approved this?",
+reach for `audit query` — not raw log files.
+
+## Installing and updating the skill
+
+`safessh skill` manages this skill across the user's agent frameworks.
+The user normally runs it themselves; only run it when asked.
+
+Supported targets (used as `--target <name>`):
+
+- `claude-code` — `~/.claude/skills/safessh/SKILL.md` (user) or
+  `.claude/skills/safessh/SKILL.md` (project).
+- `agents-md` — `AGENTS.md` in the project root (project only).
+- `cursor` — `.cursor/rules/safessh.mdc` (project only).
+- `gemini-cli` — `~/.gemini/GEMINI.md` (user) or `.gemini/GEMINI.md` (project).
+- `codex` — `~/.codex/AGENTS.md` (user only).
+- `plain` — verbatim body to an explicit `--path <FILE>`. Path-only.
+
+Subcommands:
+
+- `safessh skill install --target <name> [--scope user|project|path]` — install
+  one target. `--target all` walks the supported (target, scope) matrix and
+  installs every combo whose default path resolves; combine with
+  `--scope user`/`--scope project` to fan out to one side only. Elided
+  combos are noted on stderr.
+- `safessh skill uninstall --target <name> [--scope ...]` — remove one copy.
+- `safessh skill show [--target <name>]` — print the rendered body to stdout
+  (no file changes). Defaults to `claude-code`.
+- `safessh skill check` — print the embedded body's hash and the path of every
+  detected install.
+- `safessh skill detect [--format table|json]` — per-target status across all
+  scopes: installed yes/no, path, and whether the content matches the
+  embedded version. Run this first to see what already exists.
+- `safessh skill update [--dry-run] [--target <name>...] [--scope user|project|both]` —
+  re-render the embedded body and rewrite every currently-installed copy.
+  Never creates new files; non-installed (target, scope) pairs are silently
+  skipped. Use `--dry-run` to preview after the user upgrades `safessh`.
+
+```sh
+safessh skill install --target claude-code              # user scope by default
+safessh skill install --target all                      # fan out
+safessh skill detect                                    # see what's installed
+safessh skill update --dry-run                          # preview after upgrade
+safessh skill update                                    # rewrite installed copies
+```

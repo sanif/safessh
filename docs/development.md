@@ -20,6 +20,12 @@ For higher-level architecture and design rationale, see the [design spec](superp
 
 A crate must not reach sideways. If it feels like `safessh-ssh` needs to know about a policy decision, the call is being routed wrong — it should come back through `safessh-cli`.
 
+## Build prerequisites
+
+`safessh-audit` builds SQLite from source via `rusqlite`'s `bundled` feature, so a working **C compiler** is required on the build host (any `cc` reachable from `cargo` is fine). The CI containers and a default macOS / Linux developer environment (Xcode Command Line Tools or `build-essential`) already include this; if you're on a stripped-down image, install `gcc`/`clang` before `cargo build`.
+
+No system SQLite is needed — bundling is deliberate so the released binary doesn't depend on the host's `libsqlite3` version.
+
 ## Build, test, lint
 
 ```sh
