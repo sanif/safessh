@@ -1,5 +1,9 @@
 # Release stamps
 
+## v0.6.0 (prepared 2026-05-03)
+- Bumped on branch `feature/v0.5-v0.6` after the v0.5.0 stamp.
+- Follow the canonical v0.4.0 template below, substituting `v0.6.0`.
+
 ## v0.5.0 (prepared 2026-05-03)
 - Bumped on branch `feature/v0.5-v0.6`.
 - Follow the canonical v0.4.0 template below, substituting `v0.5.0`.

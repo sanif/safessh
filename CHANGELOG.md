@@ -5,6 +5,29 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-03
+
+### Added
+- **Four new skill adapters.** `cursor` (`.cursor/rules/safessh.md`),
+  `gemini-cli` (`~/.gemini/GEMINI.md` user / `./GEMINI.md` project,
+  section-style), `codex` (`~/.codex/AGENTS.md` user, section-style),
+  `plain` (verbatim body, requires `--path`).
+- **`safessh skill update [--dry-run] [--target ...] [--scope user|project|both]`.**
+  Re-renders the embedded skill body and rewrites every currently-
+  installed copy. `--dry-run` shows a unified diff per outdated copy.
+- **`safessh skill detect [--format table|json]`.** Lists every
+  supported (target, scope) combo with status (`installed (current)`,
+  `installed (drift)`, `installed (section present)`, `detected, not
+  installed`, `not detected`, `requires --path` for plain).
+- **`safessh skill install --target all` honors `--scope`.**
+  `--scope user` installs claude-code/gemini-cli/codex at user scope;
+  `--scope project` installs claude-code/agents-md/cursor/gemini-cli at
+  project scope. Plain is never included in `--target all`.
+
+### Changed
+- Section-style markdown helper extracted into `safessh-skill::sections`
+  for use by all section-style adapters (agents-md, gemini-cli, codex).
+
 ## [0.5.0] - 2026-05-03
 
 ### Added
