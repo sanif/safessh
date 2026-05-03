@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="grad-mix" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="10" cy="10" r="0.6" fill="#1e3a5f" opacity="0.3"/>
+    </pattern>
+    <style>
+      .term { font-family: 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 14px; }
+      .b { font-weight: 700; }
+      .fg { fill: #e2e8f0; }
+      .dim { fill: #64748b; }
+      .cy { fill: #22d3ee; }
+      .vio { fill: #a78bfa; }
+      .gn { fill: #4ade80; }
+      .ye { fill: #fbbf24; }
+      .rd { fill: #f87171; }
+      .h { font-weight: 700; fill: #94a3b8; }
+      .lbl { font-family: 'SF Mono', 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 4px; fill: #64748b; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- Backdrop -->
+  <rect width="1200" height="620" rx="14" fill="#0c1425"/>
+  <rect width="1200" height="620" rx="14" fill="url(#grid)"/>
+
+  <!-- Title strip -->
+  <text x="40" y="32" class="term b" fill="url(#grad-mix)" font-size="16">safessh</text>
+  <text x="120" y="32" class="term dim" font-size="13">— same project, same audit, two callers</text>
+
+  <!-- Center column label (between panels) -->
+  <text x="600" y="32" class="lbl" text-anchor="middle">SAME  PROJECT  ·  SAME  AUDIT  ·  SAME  GUARD  RAILS</text>
+
+  <!-- ============================================ -->
+  <!-- LEFT PANEL — operator terminal                -->
+  <!-- ============================================ -->
+  <g transform="translate(30,56)">
+    <!-- panel chrome -->
+    <rect width="560" height="392" rx="10" fill="#0a111e" stroke="#1e293b" stroke-width="1"/>
+    <rect width="560" height="28" rx="10" fill="url(#hdr)"/>
+    <rect y="18" width="560" height="10" fill="url(#hdr)"/>
+    <circle cx="18" cy="14" r="5" fill="#ef4444"/>
+    <circle cx="34" cy="14" r="5" fill="#fbbf24"/>
+    <circle cx="50" cy="14" r="5" fill="#22c55e"/>
+    <text x="280" y="18" class="term dim" text-anchor="middle" font-size="11">operator · iTerm2</text>
+
+    <!-- ribbon label -->
+    <rect x="0" y="36" width="120" height="22" rx="0" fill="#0c1425" stroke="#22d3ee" stroke-width="1"/>
+    <text x="60" y="51" class="term b cy" text-anchor="middle" font-size="11">HUMAN</text>
+
+    <!-- terminal body -->
+    <g class="term" transform="translate(20,82)">
+      <text class="cy b">$ </text>
+      <text x="18" class="fg">safessh</text>
+      <text x="86" class="vio">prod</text>
+      <text x="135" class="fg">exec</text>
+      <text x="175" class="ye">"systemctl status nginx"</text>
+
+      <text y="34" class="fg">&lt;stdout&gt;</text>
+      <text y="58" class="gn b">●</text>
+      <text x="20" y="58" class="fg">nginx.service - high-performance web server</text>
+      <text y="78" class="dim">     Loaded:</text>
+      <text x="100" y="78" class="fg">loaded (/lib/systemd/.../nginx.service; enabled)</text>
+      <text y="98" class="dim">     Active:</text>
+      <text x="100" y="98" class="gn">active (running)</text>
+      <text x="240" y="98" class="dim">since Sat 2026-05-03</text>
+      <text y="118" class="dim">       Docs:</text>
+      <text x="100" y="118" class="fg">man:nginx(8)</text>
+      <text y="138" class="dim">   Main PID:</text>
+      <text x="100" y="138" class="fg">2841 (nginx)</text>
+      <text y="158" class="dim">      Tasks:</text>
+      <text x="100" y="158" class="fg">5 (limit: 4915)</text>
+      <text y="178" class="dim">     Memory:</text>
+      <text x="100" y="178" class="fg">14.8M</text>
+      <text y="198" class="fg">&lt;/stdout&gt;</text>
+      <text y="222" class="dim">&lt;exit code="0" duration="84ms"/&gt;</text>
+
+      <text y="262" class="cy b">$ </text><text x="18" y="262" class="dim">_</text>
+    </g>
+  </g>
+
+  <!-- center divider -->
+  <line x1="600" y1="80" x2="600" y2="440" stroke="#1e293b" stroke-width="1" stroke-dasharray="3 5"/>
+
+  <!-- ============================================ -->
+  <!-- RIGHT PANEL — agent terminal                  -->
+  <!-- ============================================ -->
+  <g transform="translate(610,56)">
+    <rect width="560" height="392" rx="10" fill="#0a111e" stroke="#1e293b" stroke-width="1"/>
+    <rect width="560" height="28" rx="10" fill="url(#hdr)"/>
+    <rect y="18" width="560" height="10" fill="url(#hdr)"/>
+    <circle cx="18" cy="14" r="5" fill="#ef4444"/>
+    <circle cx="34" cy="14" r="5" fill="#fbbf24"/>
+    <circle cx="50" cy="14" r="5" fill="#22c55e"/>
+    <text x="280" y="18" class="term dim" text-anchor="middle" font-size="11">claude-code · agent loop</text>
+
+    <!-- ribbon label -->
+    <rect x="0" y="36" width="120" height="22" rx="0" fill="#0c1425" stroke="#a78bfa" stroke-width="1"/>
+    <text x="60" y="51" class="term b vio" text-anchor="middle" font-size="11">LLM AGENT</text>
+
+    <g class="term" transform="translate(20,82)">
+      <text class="vio">claude</text>
+      <text x="60" class="fg">›</text>
+      <text x="78" class="dim">why is nginx slow on prod?</text>
+
+      <text y="30" class="dim">… runs:</text>
+      <text y="54" class="cy b">$ </text>
+      <text x="18" y="54" class="fg">safessh</text>
+      <text x="86" y="54" class="vio">prod</text>
+      <text x="135" y="54" class="fg">exec</text>
+      <text x="175" y="54" class="ye">"systemctl status nginx"</text>
+
+      <text y="88" class="fg">&lt;stdout&gt;</text>
+      <text y="112" class="gn b">●</text>
+      <text x="20" y="112" class="fg">nginx.service - active (running)</text>
+      <text y="132" class="dim">     Memory:</text>
+      <text x="100" y="132" class="fg">14.8M  ·  Tasks: 5</text>
+      <text y="152" class="dim">     Status:</text>
+      <text x="100" y="152" class="gn">healthy</text>
+      <text y="172" class="fg">&lt;/stdout&gt;</text>
+      <text y="196" class="dim">&lt;exit code="0" duration="91ms"/&gt;</text>
+
+      <text y="232" class="vio">claude</text>
+      <text x="60" y="232" class="fg">›</text>
+      <text x="78" y="232" class="dim">nginx is healthy, 5 worker tasks, 14.8M memory.</text>
+      <text x="78" y="252" class="dim">No anomaly. Want me to check upstream latency next?</text>
+    </g>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- BOTTOM AUDIT STRIP                            -->
+  <!-- ============================================ -->
+  <g transform="translate(30,468)">
+    <rect width="1140" height="120" rx="10" fill="#0a111e" stroke="#1e293b" stroke-width="1"/>
+    <text x="20" y="26" class="lbl">SHARED  AUDIT  LOG  ·  ~/.local/state/safessh/audit.log</text>
+
+    <g class="term" transform="translate(20,52)">
+      <text class="dim" font-size="13">2026-05-03T18:42:15Z  </text>
+      <text x="200" class="ye" font-size="13">exec_attempt   </text>
+      <text x="340" class="fg" font-size="13">prod   </text>
+      <text x="412" class="vio" font-size="13">web   </text>
+      <text x="478" class="cy" font-size="13">allow   </text>
+      <text x="552" class="fg" font-size="13">"systemctl status nginx"  </text>
+      <text x="800" class="dim" font-size="13">[caller: tty]</text>
+
+      <text y="24" class="dim" font-size="13">2026-05-03T18:43:01Z  </text>
+      <text x="200" y="24" class="ye" font-size="13">exec_attempt   </text>
+      <text x="340" y="24" class="fg" font-size="13">prod   </text>
+      <text x="412" y="24" class="vio" font-size="13">web   </text>
+      <text x="478" y="24" class="cy" font-size="13">allow   </text>
+      <text x="552" y="24" class="fg" font-size="13">"systemctl status nginx"  </text>
+      <text x="800" y="24" class="dim" font-size="13">[caller: agent]</text>
+
+      <text y="48" class="dim" font-size="12">                          ↑ same project, same target, same policy decision — different actor</text>
+    </g>
+  </g>
+</svg>

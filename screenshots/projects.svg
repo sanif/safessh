@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 540" width="1080" height="540">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <style>
+      .term { font-family: 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 14px; }
+      .b { font-weight: 700; }
+      .fg { fill: #e2e8f0; }
+      .dim { fill: #64748b; }
+      .cy { fill: #22d3ee; }
+      .vio { fill: #a78bfa; }
+      .gn { fill: #4ade80; }
+      .ye { fill: #fbbf24; }
+      .h { font-weight: 700; fill: #94a3b8; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="540" rx="12" fill="#0c1425"/>
+  <rect width="1080" height="32" rx="12" fill="url(#hdr)"/>
+  <rect y="20" width="1080" height="14" fill="url(#hdr)"/>
+  <circle cx="20" cy="16" r="6" fill="#ef4444"/>
+  <circle cx="40" cy="16" r="6" fill="#fbbf24"/>
+  <circle cx="60" cy="16" r="6" fill="#22c55e"/>
+  <text x="540" y="21" class="term dim" text-anchor="middle" font-size="13">project add — interactive</text>
+
+  <g class="term" transform="translate(28,64)">
+    <!-- project add invocation -->
+    <text class="cy b">$ </text>
+    <text x="18" class="fg">safessh project add</text>
+
+    <text y="28" class="cy">?</text>
+    <text x="20" y="28" class="fg b">What's the project name?</text>
+    <text x="240" y="28" class="vio">prod-web</text>
+
+    <text y="50" class="cy">?</text>
+    <text x="20" y="50" class="fg b">Do you already have a ~/.ssh/config alias for this host?</text>
+    <text x="490" y="50" class="dim">(y/N)</text>
+    <text x="540" y="50" class="fg">no</text>
+
+    <text y="72" class="cy">?</text>
+    <text x="20" y="72" class="fg b">Hostname</text>
+    <text x="100" y="72" class="dim">(e.g. 10.0.0.x, db.internal, prod-web.example.com)</text>
+    <text x="490" y="72" class="vio">web-01.example.com</text>
+
+    <text y="94" class="cy">?</text>
+    <text x="20" y="94" class="fg b">Username on the remote</text>
+    <text x="240" y="94" class="vio">deploy</text>
+
+    <text y="116" class="cy">?</text>
+    <text x="20" y="116" class="fg b">SSH port</text>
+    <text x="120" y="116" class="dim">[22]</text>
+    <text x="160" y="116" class="vio">↵</text>
+
+    <text y="138" class="cy">?</text>
+    <text x="20" y="138" class="fg b">Use a private key for this host?</text>
+    <text x="280" y="138" class="dim">(y/N)</text>
+    <text x="330" y="138" class="fg">yes</text>
+
+    <text y="160" class="cy">?</text>
+    <text x="20" y="160" class="fg b">Where's the key?</text>
+    <text x="180" y="160" class="dim">› Pick from ~/.ssh/  ·  Browse  ·  Paste a path</text>
+
+    <text y="182" class="vio">›</text>
+    <text x="20" y="182" class="fg">id_ed25519_prod</text>
+
+    <text y="204" class="cy">?</text>
+    <text x="20" y="204" class="fg b">Connect through a bastion (ProxyJump)?</text>
+    <text x="320" y="204" class="dim">(y/N)</text>
+    <text x="370" y="204" class="fg">no</text>
+
+    <text y="240" class="dim">    Here's what we'll save:</text>
+    <text y="260" class="dim">      [project]                  name = "prod-web"</text>
+    <text y="278" class="dim">      [[targets]]                user = "deploy"  host = "web-01.example.com"  port = 22</text>
+    <text y="296" class="dim">                                 identity_file = "~/.ssh/id_ed25519_prod"</text>
+
+    <text y="322" class="cy">?</text>
+    <text x="20" y="322" class="fg b">Save this project?</text>
+    <text x="200" y="322" class="dim">[Y/n]</text>
+    <text x="248" y="322" class="vio">↵</text>
+
+    <text y="346" class="gn">✓</text>
+    <text x="20" y="346" class="fg">Created project </text>
+    <text x="160" y="346" class="vio">'prod-web'</text>
+    <text x="246" y="346" class="dim">at ~/.config/safessh/projects/prod-web.toml</text>
+
+    <!-- divider -->
+    <line x1="0" y1="372" x2="1024" y2="372" stroke="#1e293b" stroke-width="1"/>
+
+    <!-- project list output -->
+    <text y="396" class="cy b">$ </text>
+    <text x="18" y="396" class="fg">safessh project list</text>
+
+    <text y="422" class="h">NAME           DEFAULT TARGET    HOSTS</text>
+    <line x1="0" y1="430" x2="800" y2="430" stroke="#1e293b" stroke-width="1"/>
+
+    <text y="448" class="vio">prod          </text>
+    <text x="160" y="448" class="fg">web (default)     </text>
+    <text x="320" y="448" class="dim">web-01.example.com:22, web-02.example.com:22</text>
+
+    <text y="468" class="vio">prod-web      </text>
+    <text x="160" y="468" class="fg">prod-web          </text>
+    <text x="320" y="468" class="dim">web-01.example.com:22</text>
+
+    <text y="488" class="vio">staging       </text>
+    <text x="160" y="488" class="fg">web (default)     </text>
+    <text x="320" y="488" class="dim">stg.internal:22</text>
+
+    <text y="508" class="vio">db-replica    </text>
+    <text x="160" y="508" class="fg">replica           </text>
+    <text x="320" y="508" class="dim">db-replica.internal:22  via  bastion@jump.internal</text>
+  </g>
+</svg>
