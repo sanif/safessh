@@ -12,7 +12,7 @@
 //! * `check` walks `detection::detect` and reports installed-vs-missing plus
 //!   hash drift per framework.
 
-use crate::cli::{SkillCmd, SkillScope, UpdateScope};
+use crate::cli::{DetectFormat, SkillCmd, SkillScope, UpdateScope};
 use safessh_core::error::{Error, Result};
 use safessh_skill::adapters::{format, Target};
 use safessh_skill::detection;
@@ -41,6 +41,7 @@ pub fn run(cmd: SkillCmd) -> Result<()> {
             target,
             scope,
         } => update(dry_run, target, scope),
+        SkillCmd::Detect { format } => detect(format),
     }
 }
 
@@ -411,6 +412,113 @@ fn print_diff(path: &Path, current: &str, target: &str) {
             similar::ChangeTag::Equal => " ",
         };
         print!("{sign}{change}");
+    }
+}
+
+#[derive(serde::Serialize)]
+struct DetectRow {
+    target: &'static str,
+    scope: &'static str,
+    path: String,
+    status: String,
+}
+
+fn detect(output: DetectFormat) -> Result<()> {
+    let cwd = cwd()?;
+    let home = std::env::var("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("/"));
+    let combos: &[(Target, SkillScope, &'static str, &'static str)] = &[
+        (Target::ClaudeCode, SkillScope::User, "claude-code", "user"),
+        (
+            Target::ClaudeCode,
+            SkillScope::Project,
+            "claude-code",
+            "project",
+        ),
+        (
+            Target::AgentsMd,
+            SkillScope::Project,
+            "agents-md",
+            "project",
+        ),
+        (Target::Cursor, SkillScope::Project, "cursor", "project"),
+        (Target::GeminiCli, SkillScope::User, "gemini-cli", "user"),
+        (
+            Target::GeminiCli,
+            SkillScope::Project,
+            "gemini-cli",
+            "project",
+        ),
+        (Target::Codex, SkillScope::User, "codex", "user"),
+    ];
+
+    let mut rows: Vec<DetectRow> = vec![];
+
+    for (t, s, label, slabel) in combos {
+        let Some(path) = default_path(*t, map_scope(s.clone()), &cwd) else {
+            continue;
+        };
+        let parent_exists = path.parent().map(|p| p.exists()).unwrap_or(false);
+        let status = if !parent_exists {
+            "not detected".to_string()
+        } else if !path.exists() {
+            "detected, not installed".to_string()
+        } else {
+            let installed = std::fs::read_to_string(&path).unwrap_or_default();
+            let expected = format(*t, CONTENT);
+            let section_style = matches!(t, Target::AgentsMd | Target::GeminiCli | Target::Codex);
+            if section_style {
+                if installed.contains(expected.trim_end()) {
+                    "installed (section present)".to_string()
+                } else {
+                    "installed (drift)".to_string()
+                }
+            } else if installed == expected {
+                "installed (current)".to_string()
+            } else {
+                "installed (drift)".to_string()
+            }
+        };
+        rows.push(DetectRow {
+            target: label,
+            scope: slabel,
+            path: shrink_home(&path, &home),
+            status,
+        });
+    }
+
+    rows.push(DetectRow {
+        target: "plain",
+        scope: "—",
+        path: "—".to_string(),
+        status: "requires --path".to_string(),
+    });
+
+    match output {
+        DetectFormat::Json => {
+            let s = serde_json::to_string_pretty(&rows)
+                .map_err(|e| Error::Serde(format!("json: {e}")))?;
+            println!("{s}");
+        }
+        DetectFormat::Table => {
+            println!("{:<12} {:<8} {:<40} status", "target", "scope", "path");
+            for r in &rows {
+                println!(
+                    "{:<12} {:<8} {:<40} {}",
+                    r.target, r.scope, r.path, r.status
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn shrink_home(p: &std::path::Path, home: &std::path::Path) -> String {
+    if let Ok(stripped) = p.strip_prefix(home) {
+        format!("~/{}", stripped.display())
+    } else {
+        p.display().to_string()
     }
 }
 

@@ -229,6 +229,13 @@ pub enum SkillCmd {
         #[arg(long, value_enum, default_value_t = UpdateScope::Both)]
         scope: UpdateScope,
     },
+    /// Print per-target detection + install status across all supported
+    /// (target, scope) combos. Output is `table` (fixed-width, default) or
+    /// `json` (LLM-friendly array).
+    Detect {
+        #[arg(long, value_enum, default_value_t = DetectFormat::Table)]
+        format: DetectFormat,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -243,4 +250,10 @@ pub enum UpdateScope {
     User,
     Project,
     Both,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum DetectFormat {
+    Table,
+    Json,
 }
