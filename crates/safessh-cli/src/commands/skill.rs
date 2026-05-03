@@ -90,6 +90,13 @@ fn install(target: Option<String>, scope: SkillScope, path: Option<PathBuf>) -> 
                         installed.push(format!("agents-md (project): {}", p.display()));
                     }
                 }
+                Target::Cursor => {
+                    if let Some(p) = det.project_path.clone() {
+                        ensure_parent(&p)?;
+                        install_to(Target::Cursor, &p)?;
+                        installed.push(format!("cursor (project): {}", p.display()));
+                    }
+                }
             }
         }
         if installed.is_empty() {
@@ -164,6 +171,7 @@ fn check() -> Result<()> {
         let label = match det.target {
             Target::ClaudeCode => "claude-code",
             Target::AgentsMd => "agents-md",
+            Target::Cursor => "cursor",
         };
         report_path(label, "user", det.user_path.as_deref(), det.target);
         report_path(label, "project", det.project_path.as_deref(), det.target);
@@ -188,6 +196,7 @@ fn report_path(label: &str, scope: &str, path: Option<&Path>, target: Target) {
             let same = match target {
                 Target::ClaudeCode => installed == expected,
                 Target::AgentsMd => installed.contains(expected.trim_end()),
+                Target::Cursor => installed == expected,
             };
             if same {
                 println!("[{label} {scope}] installed (current): {}", path.display());

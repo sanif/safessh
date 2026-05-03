@@ -63,6 +63,7 @@ pub fn default_path(target: Target, scope: Scope, cwd: &Path) -> Option<PathBuf>
         (Target::ClaudeCode, Scope::User) => home.join(".claude/skills/safessh.md"),
         (Target::ClaudeCode, Scope::Project) => cwd.join(".claude/skills/safessh.md"),
         (Target::AgentsMd, Scope::Project) => cwd.join("AGENTS.md"),
+        (Target::Cursor, Scope::Project) => cwd.join(".cursor/rules/safessh.md"),
         _ => return None,
     })
 }
