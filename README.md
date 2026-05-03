@@ -20,7 +20,7 @@ brew install sanif/tap/safessh
 
 ```sh
 curl --proto '=https' --tlsv1.2 -fsSL \
-  https://github.com/sanif/safessh/releases/latest/download/safessh-installer.sh | sh
+  https://github.com/sanif/safessh/releases/latest/download/safessh-cli-installer.sh | sh
 ```
 
 ### cargo
