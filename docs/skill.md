@@ -4,14 +4,29 @@ A *skill* is a single markdown document that teaches an LLM agent how to drive `
 
 The skill content lives inside the `safessh` binary (`include_str!`). It never reaches out to the network. Updates ride along with the binary you install.
 
-## Targets supported in v0.1
+## Supported targets
 
-| Target id | Framework | Default location |
+`safessh` ships six adapters. Each maps a target id to the file (or section of a file) that the matching agent framework reads, and an explicit set of scopes (`user`, `project`, or `path`) that target supports.
+
+| Target id | Framework | User scope | Project scope | File shape |
+|---|---|---|---|---|
+| `claude-code` | [Claude Code](https://www.anthropic.com/claude-code) | `~/.claude/skills/safessh.md` | `<cwd>/.claude/skills/safessh.md` | Standalone file with YAML frontmatter |
+| `agents-md` | Tools that read `AGENTS.md` | — | `<cwd>/AGENTS.md` | `## safessh` section |
+| `cursor` | [Cursor](https://cursor.com/) rules | — | `<cwd>/.cursor/rules/safessh.md` | Standalone file |
+| `gemini-cli` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/GEMINI.md` | `<cwd>/GEMINI.md` | `## safessh` section |
+| `codex` | [Codex](https://openai.com/codex) `AGENTS.md` | `~/.codex/AGENTS.md` | — | `## safessh` section |
+| `plain` | Anything else | — | — (requires `--path`) | Standalone file |
+
+**Detection rules** (used by `skill detect` and the section-present heuristic in `skill check`):
+
+| Target | User scope detected when… | Project scope detected when… |
 |---|---|---|
-| `claude-code` | [Claude Code](https://www.anthropic.com/claude-code) | `~/.claude/skills/safessh.md` (user) or `<cwd>/.claude/skills/safessh.md` (project) |
-| `agents-md` | Tools that read `AGENTS.md` (project-scoped) | `<cwd>/AGENTS.md` (`## safessh` section) |
-
-Additional targets (Cursor, Gemini, Codex) are planned for v0.6.
+| `claude-code` | `~/.claude/` exists | `<cwd>/.claude/` exists |
+| `agents-md` | not applicable | always — `<cwd>/AGENTS.md` will be created if needed |
+| `cursor` | not applicable | `<cwd>/.cursor/` exists |
+| `gemini-cli` | `~/.gemini/` exists | `<cwd>/GEMINI.md` already exists |
+| `codex` | `~/.codex/` exists | not applicable |
+| `plain` | never auto-detected — must be installed via `--scope path` | not applicable |
 
 ## Install
 
@@ -27,14 +42,27 @@ safessh skill install --target claude-code --scope project
 # AGENTS.md, project scope (the only supported scope for this target).
 safessh skill install --target agents-md --scope project
 
-# Custom path.
+# Cursor rules, project scope.
+safessh skill install --target cursor --scope project
+
+# Gemini CLI, user scope.
+safessh skill install --target gemini-cli --scope user
+
+# Codex, user scope.
+safessh skill install --target codex --scope user
+
+# Plain file (anything else). Requires --scope path --path.
+safessh skill install --target plain --scope path --path ./docs/safessh.md
+
+# Custom path for any target.
 safessh skill install --target claude-code --scope path --path /some/dir
 
-# Fan out across whatever is detected on this machine.
-safessh skill install --target all
+# Fan out across all targets supported at the requested scope.
+safessh skill install --target all --scope user
+safessh skill install --target all --scope project
 ```
 
-`--target all` walks the detection logic (looks for `~/.claude`, `<cwd>/.claude`, etc.) and installs only where the framework appears to be set up. If nothing is detected, it prints `No agent frameworks detected.` and exits 0.
+`--target all` walks the supported (target, scope) matrix and installs every pair that has a default path at the supplied `--scope`. It is **not** detection-based — it always installs every supported pair, creating parent directories as needed. Pairs that have no install path for the requested scope (e.g., `agents-md` at `--scope user`) are skipped with a stderr note. `--scope path` is rejected with exit 2.
 
 ## What gets written
 
@@ -94,26 +122,49 @@ It also prints the embedded skill body's hash so you can confirm two machines ar
 
 A drift report typically means you upgraded the `safessh` binary but didn't refresh the on-disk skill copy.
 
-## Updating after a binary upgrade
-
-In v0.1 the answer is: **re-run install**.
+## Detect what's installed
 
 ```sh
-safessh skill install --target all
+safessh skill detect              # fixed-width table
+safessh skill detect --format json
 ```
 
-`install` is idempotent: it overwrites the Claude Code skill file atomically and replaces the `## safessh` section in any AGENTS.md it manages, preserving the rest of the file.
+`skill detect` walks every supported (target, scope) combination and reports, per pair, the resolved path and one of:
 
-A dedicated `safessh skill update` subcommand is planned for v0.6.
+- `not detected` — the framework's parent directory does not exist.
+- `detected, not installed` — parent exists but no skill file/section yet.
+- `installed (current)` / `installed (section present)` — file or section matches the embedded body.
+- `installed (drift)` — body diverges; run `skill update` to refresh.
+- `requires --path` — emitted for `plain`, which has no default location.
+
+Use `skill check` for the same information in a more conversational format (one line per scope plus the embedded-content hash). Use `skill detect --format json` from tooling or LLM agents.
+
+## Updating after a binary upgrade
+
+`skill update` re-renders the embedded skill body and rewrites every currently-installed copy. It does **not** create new files — pairs that aren't already installed are skipped. This is the recommended path after upgrading the `safessh` binary.
+
+```sh
+safessh skill update                         # update everything installed (both scopes)
+safessh skill update --dry-run               # preview unified diff per file, change nothing
+safessh skill update --target claude-code    # restrict to one target (repeatable)
+safessh skill update --scope user            # restrict to one scope (default: both)
+```
+
+For section-style targets (`agents-md`, `gemini-cli`, `codex`) the `## safessh` section is replaced cleanly and the rest of the file is preserved. For file-style targets the file is rewritten atomically.
+
+`skill install` remains idempotent if you'd rather force-create the file at the same time — `update` is the lighter-weight option once a copy already exists.
 
 ## Uninstall
 
 ```sh
 safessh skill uninstall --target claude-code --scope user
 safessh skill uninstall --target agents-md --scope project
+safessh skill uninstall --target cursor --scope project
+safessh skill uninstall --target gemini-cli --scope user
+safessh skill uninstall --target codex --scope user
 ```
 
-For `claude-code` this deletes the file. For `agents-md` it strips only the `## safessh` section, leaving the rest of `AGENTS.md` intact.
+For file-style targets (`claude-code`, `cursor`, `plain`) this deletes the file. For section-style targets (`agents-md`, `gemini-cli`, `codex`) it strips only the `## safessh` section, leaving the rest of the host file intact.
 
 ## Why not auto-update?
 
