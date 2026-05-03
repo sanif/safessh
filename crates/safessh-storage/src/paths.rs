@@ -50,6 +50,10 @@ impl Paths {
         self.state.join("audit.log")
     }
 
+    pub fn audit_db(&self) -> PathBuf {
+        self.state.join("audit.db")
+    }
+
     pub fn config_file(&self) -> PathBuf {
         self.config.join("config.toml")
     }
