@@ -6,6 +6,7 @@ pub mod claude_code;
 pub mod codex;
 pub mod cursor;
 pub mod gemini_cli;
+pub mod plain;
 
 /// Target agent framework / surface for the formatted skill content.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +21,8 @@ pub enum Target {
     GeminiCli,
     /// OpenAI Codex CLI section in `~/.codex/AGENTS.md`.
     Codex,
+    /// Plain markdown body — no wrapping, no section header. Requires --path.
+    Plain,
 }
 
 /// Format the given canonical body for the requested target.
@@ -30,6 +33,7 @@ pub fn format(target: Target, body: &str) -> String {
         Target::Cursor => cursor::format(body),
         Target::GeminiCli => gemini_cli::format(body),
         Target::Codex => codex::format(body),
+        Target::Plain => plain::format(body),
     }
 }
 
@@ -41,5 +45,6 @@ pub fn filename(target: Target) -> &'static str {
         Target::Cursor => "safessh.md",
         Target::GeminiCli => "GEMINI.md",
         Target::Codex => "AGENTS.md",
+        Target::Plain => "safessh.md",
     }
 }

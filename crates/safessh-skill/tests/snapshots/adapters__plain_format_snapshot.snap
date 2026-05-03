@@ -1,0 +1,5 @@
+---
+source: crates/safessh-skill/tests/adapters.rs
+expression: formatted
+---
+Hello world.
