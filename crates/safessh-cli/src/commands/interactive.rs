@@ -20,7 +20,8 @@ use safessh_storage::project::{Approvals, OutputCaps, Policy, Project, ProjectSt
 use safessh_storage::ssh_config::SshConfigSnapshot;
 use std::path::{Path, PathBuf};
 
-/// Themed text input that supports both arrow-key editing AND bracketed paste.
+/// Themed text input that supports arrow-key editing AND bracketed paste,
+/// optionally pre-filling the line with `initial`.
 ///
 /// Why we don't use `dialoguer::Input::interact_text()`:
 ///   * dialoguer 0.11 puts the terminal in raw mode and reads char-by-char.
@@ -34,9 +35,14 @@ use std::path::{Path, PathBuf};
 ///   * Cooked mode is paste-safe but the kernel tty driver doesn't translate
 ///     arrow keys, so left/right print `^[[D`/`^[[C` literally.
 ///
-/// `rustyline` is a proper line editor that handles both — paste arrives intact,
-/// arrows move the cursor, Ctrl-A/E/U/K work, etc.
-fn input_line<F>(label: &str, default: Option<&str>, mut validate: F) -> Result<String>
+/// `rustyline` is a proper line editor: paste arrives intact, arrows move the
+/// cursor, Ctrl-A/E/U/K work, and `readline_with_initial` pre-populates the
+/// line so edit-mode prompts can show the current value for inline editing
+/// (Enter keeps it; Ctrl-U or backspace clears).
+///
+/// Validators always see the trimmed value — pasted clipboards often carry
+/// stray newlines/spaces.
+fn input_line<F>(label: &str, initial: Option<&str>, mut validate: F) -> Result<String>
 where
     F: FnMut(&str) -> std::result::Result<(), String>,
 {
@@ -51,13 +57,16 @@ where
 
     let prefix = style("?").for_stderr().cyan().bold();
     let lbl = style(label).for_stderr().bold();
-    let def = default
-        .map(|d| format!(" [{}]", style(d).for_stderr().dim()))
-        .unwrap_or_default();
-    let prompt = format!("{prefix} {lbl}{def}: ");
+    let prompt = format!("{prefix} {lbl}: ");
+    let pre = initial.unwrap_or("");
 
     loop {
-        let line = match editor.readline(&prompt) {
+        let read_result = if pre.is_empty() {
+            editor.readline(&prompt)
+        } else {
+            editor.readline_with_initial(&prompt, (pre, ""))
+        };
+        let line = match read_result {
             Ok(l) => l,
             Err(ReadlineError::Interrupted) => {
                 return Err(Error::Usage("cancelled".into()));
@@ -70,16 +79,7 @@ where
                 return Err(Error::Usage(format!("readline failed: {other}")));
             }
         };
-        // Always trim leading/trailing whitespace — pasted strings often
-        // carry stray newlines, spaces, or tabs from the source clipboard,
-        // and none of the fields we accept (hostnames, usernames, project
-        // names, paths, bastions) tolerate flanking whitespace.
-        let trimmed = line.trim();
-        let value = if trimmed.is_empty() {
-            default.unwrap_or("").to_string()
-        } else {
-            trimmed.to_string()
-        };
+        let value = line.trim().to_string();
         match validate(&value) {
             Ok(()) => return Ok(value),
             Err(msg) => eprintln!("  {} {msg}", style("✘").for_stderr().red()),
@@ -174,6 +174,7 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
     loop {
         let actions = [
             "Add a target",
+            "Edit a target (host, user, port, key, bastion)",
             "Remove a target",
             "Change the default target",
             "Edit policy categories",
@@ -188,10 +189,11 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
             .map_err(io_to_err)?;
         match choice {
             0 => add_target_to(&mut project, &theme, store)?,
-            1 => remove_target_from(&mut project, &theme)?,
-            2 => change_default_target(&mut project, &theme)?,
-            3 => edit_policy(&mut project, &theme)?,
-            4 => {
+            1 => edit_existing_target(&mut project, &theme)?,
+            2 => remove_target_from(&mut project, &theme)?,
+            3 => change_default_target(&mut project, &theme)?,
+            4 => edit_policy(&mut project, &theme)?,
+            5 => {
                 store.save(&project)?;
                 println!("Saved.");
                 return Ok(());
@@ -202,6 +204,141 @@ pub fn edit(store: &ProjectStore, name_hint: Option<String>) -> Result<()> {
             }
         }
     }
+}
+
+/// Edit fields of an existing target (Inline only edits host/user/port/key/
+/// bastion; SshConfigAlias edits the alias name). Picks via FuzzySelect when
+/// there are multiple targets.
+fn edit_existing_target(project: &mut Project, theme: &ColorfulTheme) -> Result<()> {
+    if project.targets.is_empty() {
+        eprintln!("No targets to edit yet — try 'Add a target' first.");
+        return Ok(());
+    }
+    let labels: Vec<String> = project
+        .targets
+        .iter()
+        .map(|t| match t {
+            Target::Inline {
+                name,
+                host,
+                port,
+                user,
+                ..
+            } => format!("{name}  →  {user}@{host}:{port}"),
+            Target::SshConfigAlias {
+                name,
+                ssh_config_alias,
+            } => format!("{name}  →  alias:{ssh_config_alias}"),
+        })
+        .collect();
+    let idx = FuzzySelect::with_theme(theme)
+        .with_prompt("Which target?")
+        .items(&labels)
+        .default(0)
+        .interact()
+        .map_err(io_to_err)?;
+
+    match &mut project.targets[idx] {
+        Target::Inline {
+            name,
+            host,
+            port,
+            user,
+            identity_file,
+            proxy_jump,
+            keychain_secret: _,
+        } => {
+            let new_host = input_line("Hostname", Some(host), |s| {
+                if s.is_empty() {
+                    Err("looks empty — try a hostname".into())
+                } else {
+                    Ok(())
+                }
+            })?;
+            *host = new_host;
+
+            let new_user = input_line("Username on the remote", Some(user), |s| {
+                if s.is_empty() {
+                    Err("looks empty — try a username".into())
+                } else {
+                    Ok(())
+                }
+            })?;
+            *user = new_user;
+
+            let port_str = port.to_string();
+            let new_port_str = input_line("SSH port", Some(&port_str), |s| {
+                s.parse::<u16>()
+                    .map(|_| ())
+                    .map_err(|e| format!("not a valid port: {e}"))
+            })?;
+            *port = new_port_str.parse().unwrap_or(22);
+
+            let cur_key = identity_file
+                .as_ref()
+                .map(|p| display_path(p))
+                .unwrap_or_default();
+            let new_key = input_line(
+                "Identity file path (empty to remove)",
+                if cur_key.is_empty() {
+                    None
+                } else {
+                    Some(cur_key.as_str())
+                },
+                |s| {
+                    if s.is_empty() {
+                        return Ok(());
+                    }
+                    let resolved = resolve_input_path(s);
+                    if !resolved.exists() {
+                        return Err("can't find that file (or it's not readable)".into());
+                    }
+                    if !resolved.is_file() {
+                        return Err("that's not a regular file".into());
+                    }
+                    Ok(())
+                },
+            )?;
+            *identity_file = if new_key.is_empty() {
+                None
+            } else {
+                Some(resolve_input_path(&new_key))
+            };
+
+            let cur_pj = proxy_jump.clone().unwrap_or_default();
+            let new_pj = input_line(
+                "Bastion / ProxyJump (empty to remove)",
+                if cur_pj.is_empty() {
+                    None
+                } else {
+                    Some(cur_pj.as_str())
+                },
+                |_| Ok(()),
+            )?;
+            *proxy_jump = if new_pj.is_empty() {
+                None
+            } else {
+                Some(new_pj)
+            };
+
+            println!("Target {name} updated.");
+        }
+        Target::SshConfigAlias {
+            name,
+            ssh_config_alias,
+        } => {
+            let new_alias = input_line("SSH config alias", Some(ssh_config_alias), |s| {
+                if s.is_empty() {
+                    Err("looks empty — try an alias name".into())
+                } else {
+                    Ok(())
+                }
+            })?;
+            *ssh_config_alias = new_alias;
+            println!("Target {name} updated.");
+        }
+    }
+    Ok(())
 }
 
 fn pick_existing_project(store: &ProjectStore, theme: &ColorfulTheme) -> Result<String> {
