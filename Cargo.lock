@@ -3052,6 +3052,7 @@ version = "0.4.4"
 dependencies = [
  "chrono",
  "humantime",
+ "proptest",
  "refinery",
  "rusqlite",
  "safessh-core",
